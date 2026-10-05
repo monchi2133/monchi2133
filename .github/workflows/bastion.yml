@@ -1,0 +1,31 @@
+name: Bastion (macOS)
+
+on:
+  push:
+    paths:
+      - "bastion/**"
+      - ".github/workflows/bastion.yml"
+  pull_request:
+    paths:
+      - "bastion/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: bastion
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app bundle (universal)
+        run: UNIVERSAL=1 ./scripts/build-app.sh
+      - name: Verify bundle
+        run: |
+          plutil -lint build/Bastion.app/Contents/Info.plist
+          lipo -info build/Bastion.app/Contents/MacOS/Bastion
+          codesign --verify --verbose build/Bastion.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bastion.app
+          path: bastion/build/Bastion.zip
