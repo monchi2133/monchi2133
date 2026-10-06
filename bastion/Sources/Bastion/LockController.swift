@@ -28,6 +28,13 @@ final class LockController: ObservableObject {
     private var previousApp: NSRunningApplication?
     private var screenObserver: NSObjectProtocol?
     private var systemLockObservers: [NSObjectProtocol] = []
+    private var activationObserver: NSObjectProtocol?
+
+    /// 認証中は Dock・メニューバー・アプリ切替・強制終了を無効化（キオスクモード）
+    private static let authPresentation: NSApplication.PresentationOptions = [
+        .hideDock, .hideMenuBar, .disableProcessSwitching,
+        .disableForceQuit, .disableSessionTermination, .disableHideApplication,
+    ]
 
     var isLocked: Bool { state != .unlocked }
     var biometryAvailable: Bool { authenticator.biometryAvailable }
@@ -61,6 +68,7 @@ final class LockController: ObservableObject {
             state = .locked
             authTimeout?.cancel()
             authTimeout = nil
+            endAuthPresentation()
             authenticator.cancel()
         }
         blocker.passThrough = true
@@ -134,11 +142,13 @@ final class LockController: ObservableObject {
         overlays.forEach { $0.level = .floating }
         previousApp = NSWorkspace.shared.frontmostApplication
         NSApp.activate(ignoringOtherApps: true)
+        NSApp.presentationOptions = Self.authPresentation
         (overlays.first(where: { $0.isPrimary }) ?? overlays.first)?.makeKeyAndOrderFront(nil)
+        watchActivations()
 
         let timeout = DispatchWorkItem { [weak self] in self?.authenticator.cancel() }
         authTimeout = timeout
-        DispatchQueue.main.asyncAfter(deadline: .now() + 45, execute: timeout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: timeout)
 
         authenticator.authenticate(reason: "入力ロックを解除") { [weak self] success in
             guard let self, self.state == .authenticating else { return }
@@ -150,7 +160,38 @@ final class LockController: ObservableObject {
         }
     }
 
+    /// 認証中に Bastion・認証UI 以外のアプリが前面に来たら、すぐにロックへ戻す
+    private func watchActivations() {
+        stopWatchingActivations()
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let self, self.state == .authenticating,
+                  let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            if app == NSRunningApplication.current { return }
+            let id = (app.bundleIdentifier ?? "").lowercased()
+            let authUI = ["coreauth", "localauthentication", "securityagent", "loginwindow"]
+            if authUI.contains(where: { id.contains($0) }) { return }
+            self.state = .locked // 補完ハンドラの relock より先に状態を確定
+            self.authenticator.cancel()
+            self.relock()
+        }
+    }
+
+    private func stopWatchingActivations() {
+        if let activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+        }
+        activationObserver = nil
+    }
+
+    private func endAuthPresentation() {
+        stopWatchingActivations()
+        NSApp.presentationOptions = []
+    }
+
     private func relock() {
+        endAuthPresentation()
         authTimeout?.cancel()
         authTimeout = nil
         blocker.passThrough = false
@@ -164,6 +205,7 @@ final class LockController: ObservableObject {
 
     func unlock() {
         guard state != .unlocked else { return }
+        endAuthPresentation()
         authTimeout?.cancel()
         authTimeout = nil
         autoUnlockTimer?.invalidate()

@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 
@@ -51,13 +52,26 @@ final class InputBlocker {
         passThrough = false
     }
 
+    /// 認証ダイアログ表示中でも通さない操作（アプリ切替・Spotlight・Mission Control など）。
+    /// 認証に必要なのは文字入力・Return・Esc・クリックだけ。
+    private static func isEscapeAttempt(type: CGEventType, event: CGEvent) -> Bool {
+        guard type == .keyDown || type == .keyUp else { return false }
+        let flags = event.flags
+        if flags.contains(.maskCommand) { return true }   // ⌘Tab, ⌘Space, ⌘Q, ⌘W …
+        let code = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        let arrows = [kVK_LeftArrow, kVK_RightArrow, kVK_UpArrow, kVK_DownArrow]
+        if flags.contains(.maskControl) && arrows.contains(code) { return true } // デスクトップ切替
+        // Mission Control / Launchpad / Spotlight / F3 / F4
+        return [160, 131, 177, kVK_F3, kVK_F4].contains(code)
+    }
+
     fileprivate func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
         if passThrough {
-            return Unmanaged.passUnretained(event)
+            return Self.isEscapeAttempt(type: type, event: event) ? nil : Unmanaged.passUnretained(event)
         }
         if type == .keyDown {
             let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))

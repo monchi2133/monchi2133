@@ -10,7 +10,7 @@ struct Shortcut: Codable, Equatable {
 
     static let defaultLock = Shortcut(
         keyCode: UInt16(kVK_ANSI_L),
-        modifiers: NSEvent.ModifierFlags([.control, .option, .command]).rawValue,
+        modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue,
         key: "L"
     )
     static let defaultUnlock = Shortcut(
