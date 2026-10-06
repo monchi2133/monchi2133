@@ -27,6 +27,7 @@ final class LockController: ObservableObject {
     private var previewTimer: Timer?
     private var previousApp: NSRunningApplication?
     private var screenObserver: NSObjectProtocol?
+    private var systemLockObservers: [NSObjectProtocol] = []
 
     var isLocked: Bool { state != .unlocked }
     var biometryAvailable: Bool { authenticator.biometryAvailable }
@@ -39,6 +40,37 @@ final class LockController: ObservableObject {
             guard let self, !self.overlays.isEmpty else { return }
             self.showOverlays()
         }
+
+        // 蓋を閉じて画面がスリープすると macOS 自体のロック画面が出ることがある。
+        // その間は macOS が保護しているので入力ブロックを止め、ログインパスワードを入力できるようにする。
+        let center = DistributedNotificationCenter.default()
+        systemLockObservers = [
+            center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+                self?.systemDidLock()
+            },
+            center.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+                self?.systemDidUnlock()
+            },
+        ]
+    }
+
+    private func systemDidLock() {
+        guard state != .unlocked else { return }
+        if state == .authenticating {
+            // relock() が走らないよう先に状態を戻してから認証を取り消す
+            state = .locked
+            authTimeout?.cancel()
+            authTimeout = nil
+            authenticator.cancel()
+        }
+        blocker.passThrough = true
+        overlays.forEach { $0.orderOut(nil) }
+    }
+
+    private func systemDidUnlock() {
+        guard state != .unlocked else { return }
+        // macOS のログインパスワードで本人確認済みなので Bastion も解除する
+        unlock()
     }
 
     // MARK: - Lock

@@ -35,6 +35,10 @@ final class Preferences: ObservableObject {
     @Published var keepDisplayOn: Bool { didSet { defaults.set(keepDisplayOn, forKey: "keepDisplayOn") } }
     @Published var awakeWhileAgentsRun: Bool { didSet { defaults.set(awakeWhileAgentsRun, forKey: "awakeWhileAgentsRun") } }
 
+    @Published var closedLidEnabled: Bool { didSet { defaults.set(closedLidEnabled, forKey: "closedLidEnabled") } }
+    @Published var clamshellThermalGuard: Bool { didSet { defaults.set(clamshellThermalGuard, forKey: "clamshellThermalGuard") } }
+    @Published var clamshellMinBattery: Int { didSet { defaults.set(clamshellMinBattery, forKey: "clamshellMinBattery") } }
+
     @Published var requireAuth: Bool { didSet { defaults.set(requireAuth, forKey: "requireAuth") } }
     @Published var autoUnlockMinutes: Int { didSet { defaults.set(autoUnlockMinutes, forKey: "autoUnlockMinutes") } }
 
@@ -50,6 +54,9 @@ final class Preferences: ObservableObject {
             "preventSleep": true,
             "keepDisplayOn": true,
             "awakeWhileAgentsRun": false,
+            "closedLidEnabled": false,
+            "clamshellThermalGuard": true,
+            "clamshellMinBattery": 20,
             "requireAuth": true,
             "autoUnlockMinutes": 0,
             "overlayStyle": OverlayStyle.clear.rawValue,
@@ -64,6 +71,9 @@ final class Preferences: ObservableObject {
         preventSleep = defaults.bool(forKey: "preventSleep")
         keepDisplayOn = defaults.bool(forKey: "keepDisplayOn")
         awakeWhileAgentsRun = defaults.bool(forKey: "awakeWhileAgentsRun")
+        closedLidEnabled = defaults.bool(forKey: "closedLidEnabled")
+        clamshellThermalGuard = defaults.bool(forKey: "clamshellThermalGuard")
+        clamshellMinBattery = defaults.integer(forKey: "clamshellMinBattery")
         requireAuth = defaults.bool(forKey: "requireAuth")
         autoUnlockMinutes = defaults.integer(forKey: "autoUnlockMinutes")
         overlayStyle = OverlayStyle(rawValue: defaults.string(forKey: "overlayStyle") ?? "") ?? .clear

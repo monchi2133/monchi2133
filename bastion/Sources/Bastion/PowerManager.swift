@@ -27,9 +27,13 @@ final class PowerManager: ObservableObject {
             wanted = .system
         }
         apply(wanted)
+        ClamshellManager.shared.update(wantAwake: wanted != nil)
     }
 
-    func releaseAll() { apply(nil) }
+    func releaseAll() {
+        apply(nil)
+        ClamshellManager.shared.disengageNow()
+    }
 
     private func apply(_ wanted: Mode?) {
         guard wanted != mode else { return }

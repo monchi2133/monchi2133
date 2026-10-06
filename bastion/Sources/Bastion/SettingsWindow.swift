@@ -9,11 +9,12 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(Preferences.shared)
             .environmentObject(AgentMonitor.shared)
             .environmentObject(LockController.shared)
+            .environmentObject(ClamshellManager.shared)
         let host = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: host)
         window.title = "Bastion 設定"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 560, height: 520))
+        window.setContentSize(NSSize(width: 560, height: 600))
         window.isReleasedWhenClosed = false
         window.center()
         self.init(window: window)
@@ -28,7 +29,7 @@ struct SettingsView: View {
             ShortcutSettings().tabItem { Label("ショートカット", systemImage: "keyboard") }
             PermissionSettings().tabItem { Label("権限", systemImage: "hand.raised") }
         }
-        .frame(width: 560, height: 520)
+        .frame(width: 560, height: 600)
     }
 }
 
@@ -76,6 +77,8 @@ private struct GeneralSettings: View {
                 Toggle("AIエージェント実行中は常にスリープを防止", isOn: $prefs.awakeWhileAgentsRun)
             }
 
+            ClosedLidSection()
+
             Section("ロック解除") {
                 Toggle("解除に Touch ID / パスワードを要求", isOn: $prefs.requireAuth)
                 Picker("自動解除", selection: $prefs.autoUnlockMinutes) {
@@ -114,6 +117,76 @@ private struct GeneralSettings: View {
         .formStyle(.grouped)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             trusted = Permissions.isAccessibilityTrusted
+        }
+    }
+}
+
+// MARK: - 蓋を閉じても動かす
+
+private struct ClosedLidSection: View {
+    @EnvironmentObject private var prefs: Preferences
+    @EnvironmentObject private var clamshell: ClamshellManager
+    @State private var working = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "laptopcomputer")
+                    .font(.title2)
+                    .foregroundColor(clamshell.isHelperInstalled ? Theme.accent : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(clamshell.isHelperInstalled ? "セットアップ済み" : "セットアップが必要です").font(.headline)
+                    Text("初回のみ管理者パスワードを入力します。許可されるのは pmset のスリープ無効化/有効化の2コマンドだけです。")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+                if working {
+                    ProgressView().controlSize(.small)
+                } else if clamshell.isHelperInstalled {
+                    Button("削除") { run { clamshell.uninstallHelper(completion: $0) } }
+                } else {
+                    Button("セットアップ") { run { clamshell.installHelper(completion: $0) } }
+                }
+            }
+            if let errorMessage {
+                Text(errorMessage).font(.caption).foregroundColor(Theme.warning)
+            }
+
+            Toggle("スリープ防止中は蓋を閉じてもスリープしない", isOn: $prefs.closedLidEnabled)
+                .disabled(!clamshell.isHelperInstalled)
+            Toggle("本体が高温になったら自動で停止", isOn: $prefs.clamshellThermalGuard)
+                .disabled(!prefs.closedLidEnabled)
+            Picker("バッテリー残量がこれ以下で停止", selection: $prefs.clamshellMinBattery) {
+                Text("10%").tag(10)
+                Text("20%").tag(20)
+                Text("30%").tag(30)
+                Text("50%").tag(50)
+            }
+            .disabled(!prefs.closedLidEnabled)
+
+            if clamshell.isEngaged {
+                Label("いま蓋を閉じても動作を継続します", systemImage: "checkmark.circle.fill")
+                    .foregroundColor(Theme.accent)
+            } else if prefs.closedLidEnabled, let reason = clamshell.safetyStopReason {
+                Label(reason, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+            }
+        } header: {
+            Text("蓋を閉じても動かす")
+        } footer: {
+            Text("外部ディスプレイなしで蓋を閉じても、ロック中（またはAIエージェント実行中）は Mac を起こしたままにします。解除・終了時、高温時、バッテリー低下時は自動で通常のスリープに戻ります。閉じた Mac も発熱するため、バッグには入れないでください。")
+                .font(.caption).foregroundColor(.secondary)
+        }
+        .onAppear { clamshell.refreshHelperStatus() }
+    }
+
+    private func run(_ action: (@escaping (String?) -> Void) -> Void) {
+        working = true
+        errorMessage = nil
+        action { message in
+            working = false
+            errorMessage = message
         }
     }
 }

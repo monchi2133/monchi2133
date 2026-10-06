@@ -7,6 +7,7 @@ struct OverlayView: View {
     @EnvironmentObject private var prefs: Preferences
     @EnvironmentObject private var agents: AgentMonitor
     @EnvironmentObject private var power: PowerManager
+    @EnvironmentObject private var clamshell: ClamshellManager
 
     @State private var glow = false
     @State private var nudge = false
@@ -151,6 +152,11 @@ struct OverlayView: View {
             }
             if power.isPreventingSleep || (lock.isPreview && prefs.preventSleep) {
                 Chip(icon: "bolt.fill", text: "スリープ防止")
+            }
+            if clamshell.isEngaged {
+                Chip(icon: "laptopcomputer", text: "蓋を閉じてもOK")
+            } else if prefs.closedLidEnabled, let reason = clamshell.safetyStopReason {
+                Chip(icon: "exclamationmark.triangle.fill", text: reason)
             }
             if prefs.showAgents && !agents.agents.isEmpty {
                 Chip(icon: "sparkles", text: agents.agents.joined(separator: "・") + " 実行中", highlighted: true)

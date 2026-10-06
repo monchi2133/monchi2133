@@ -14,10 +14,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem.menu = menu
         updateIcon()
 
-        Publishers.Merge3(
+        Publishers.Merge4(
             LockController.shared.objectWillChange.map { _ in () },
             AgentMonitor.shared.objectWillChange.map { _ in () },
-            PowerManager.shared.objectWillChange.map { _ in () }
+            PowerManager.shared.objectWillChange.map { _ in () },
+            ClamshellManager.shared.objectWillChange.map { _ in () }
         )
         .receive(on: DispatchQueue.main)
         .sink { [weak self] in self?.updateIcon() }
@@ -60,6 +61,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(awake)
         }
 
+        let clamshell = ClamshellManager.shared
+        if clamshell.isEngaged {
+            let lid = NSMenuItem(title: "蓋を閉じても動作継続中", action: nil, keyEquivalent: "")
+            lid.isEnabled = false
+            lid.image = NSImage(systemSymbolName: "laptopcomputer", accessibilityDescription: nil)
+            menu.addItem(lid)
+        } else if prefs.closedLidEnabled, let reason = clamshell.safetyStopReason {
+            let stop = NSMenuItem(title: "蓋閉じ: " + reason, action: nil, keyEquivalent: "")
+            stop.isEnabled = false
+            stop.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+            menu.addItem(stop)
+        }
+
         menu.addItem(.separator())
 
         let lockItem = NSMenuItem(title: "このMacをロック", action: #selector(lockNow), keyEquivalent: "")
@@ -72,6 +86,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(toggle("ロック中はスリープを防止", on: prefs.preventSleep, action: #selector(togglePreventSleep)))
         menu.addItem(toggle("AIエージェント実行中はスリープを防止", on: prefs.awakeWhileAgentsRun, action: #selector(toggleAgentAwake)))
+        menu.addItem(toggle("蓋を閉じてもスリープしない", on: prefs.closedLidEnabled, action: #selector(toggleClosedLid)))
 
         menu.addItem(.separator())
 
@@ -112,6 +127,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func togglePreventSleep() { Preferences.shared.preventSleep.toggle() }
     @objc private func toggleAgentAwake() { Preferences.shared.awakeWhileAgentsRun.toggle() }
+    @objc private func toggleClosedLid() {
+        if !ClamshellManager.shared.isHelperInstalled {
+            // 未セットアップなら設定画面で案内する
+            openSettings()
+            return
+        }
+        Preferences.shared.closedLidEnabled.toggle()
+    }
+
     @objc private func showSettings() { openSettings() }
 
     @objc private func showAbout() {

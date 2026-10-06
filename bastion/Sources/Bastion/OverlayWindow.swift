@@ -22,6 +22,7 @@ final class OverlayWindow: NSWindow {
             .environmentObject(Preferences.shared)
             .environmentObject(AgentMonitor.shared)
             .environmentObject(PowerManager.shared)
+            .environmentObject(ClamshellManager.shared)
         contentView = NSHostingView(rootView: root)
     }
 
