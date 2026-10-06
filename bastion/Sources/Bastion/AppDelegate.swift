@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         AgentMonitor.shared.start()
+        HotCornerMonitor.shared.start()
         ClamshellManager.shared.recoverOnLaunch()
 
         // 設定・ロック状態・エージェント検出が変わったらスリープ防止を再評価

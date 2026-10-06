@@ -247,6 +247,24 @@ private struct ShortcutSettings: View {
             Section {
                 Button("デフォルトに戻す") { prefs.resetShortcuts() }
             }
+
+            Section {
+                Picker("ホットコーナーでロック", selection: $prefs.hotCorner) {
+                    ForEach(HotCorner.allCases) { Text($0.label).tag($0) }
+                }
+                Picker("角に置いてからロックまで", selection: $prefs.hotCornerDelay) {
+                    Text("すぐ").tag(0.2)
+                    Text("0.5秒").tag(0.5)
+                    Text("1秒").tag(1.0)
+                    Text("2秒").tag(2.0)
+                }
+                .disabled(prefs.hotCorner == .none)
+            } header: {
+                Text("ホットコーナー")
+            } footer: {
+                Text("マウスカーソルを選んだ画面の角に置くとロックします。macOS のホットコーナー（システム設定 › デスクトップとDock › ホットコーナー）で同じ角を使っている場合は、そちらを「−」にしてください。")
+                    .font(.caption).foregroundColor(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

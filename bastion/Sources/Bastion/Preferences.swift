@@ -31,6 +31,9 @@ final class Preferences: ObservableObject {
     @Published var lockShortcut: Shortcut { didSet { store(lockShortcut, "lockShortcut") } }
     @Published var unlockShortcut: Shortcut { didSet { store(unlockShortcut, "unlockShortcut") } }
 
+    @Published var hotCorner: HotCorner { didSet { defaults.set(hotCorner.rawValue, forKey: "hotCorner") } }
+    @Published var hotCornerDelay: Double { didSet { defaults.set(hotCornerDelay, forKey: "hotCornerDelay") } }
+
     @Published var preventSleep: Bool { didSet { defaults.set(preventSleep, forKey: "preventSleep") } }
     @Published var keepDisplayOn: Bool { didSet { defaults.set(keepDisplayOn, forKey: "keepDisplayOn") } }
     @Published var awakeWhileAgentsRun: Bool { didSet { defaults.set(awakeWhileAgentsRun, forKey: "awakeWhileAgentsRun") } }
@@ -52,6 +55,8 @@ final class Preferences: ObservableObject {
 
     private init() {
         defaults.register(defaults: [
+            "hotCorner": HotCorner.none.rawValue,
+            "hotCornerDelay": 0.5,
             "preventSleep": true,
             "keepDisplayOn": true,
             "awakeWhileAgentsRun": false,
@@ -70,6 +75,8 @@ final class Preferences: ObservableObject {
         ])
         lockShortcut = Self.load("lockShortcut", from: defaults) ?? .defaultLock
         unlockShortcut = Self.load("unlockShortcut", from: defaults) ?? .defaultUnlock
+        hotCorner = HotCorner(rawValue: defaults.string(forKey: "hotCorner") ?? "") ?? .none
+        hotCornerDelay = defaults.double(forKey: "hotCornerDelay")
         preventSleep = defaults.bool(forKey: "preventSleep")
         keepDisplayOn = defaults.bool(forKey: "keepDisplayOn")
         awakeWhileAgentsRun = defaults.bool(forKey: "awakeWhileAgentsRun")
