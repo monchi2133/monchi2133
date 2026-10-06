@@ -17,7 +17,7 @@ final class OverlayWindow: NSWindow {
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
-        let root = OverlayView(isPrimary: isPrimary)
+        let root = OverlayView(isPrimary: isPrimary, screenFrame: screen.frame)
             .environmentObject(LockController.shared)
             .environmentObject(Preferences.shared)
             .environmentObject(AgentMonitor.shared)

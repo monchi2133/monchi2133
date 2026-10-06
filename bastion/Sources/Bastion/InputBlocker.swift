@@ -7,6 +7,8 @@ import Foundation
 final class InputBlocker {
     var unlockShortcut: Shortcut = .defaultUnlock
     var onUnlockShortcut: (() -> Void)?
+    /// ロック画面の指紋ボタンの位置（グローバル座標）か判定する
+    var isUnlockHotspot: ((CGPoint) -> Bool)?
     var onActivity: (() -> Void)?
 
     /// true の間は入力を通す（認証ダイアログの操作用）
@@ -72,6 +74,14 @@ final class InputBlocker {
         }
         if passThrough {
             return Self.isEscapeAttempt(type: type, event: event) ? nil : Unmanaged.passUnretained(event)
+        }
+        // カーソル移動だけは通す（指紋ボタンまで動かせるように）。クリックやドラッグは通さない。
+        if type == .mouseMoved {
+            return Unmanaged.passUnretained(event)
+        }
+        if type == .leftMouseDown, isUnlockHotspot?(event.location) == true {
+            DispatchQueue.main.async { [weak self] in self?.onUnlockShortcut?() }
+            return nil
         }
         if type == .keyDown {
             let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))

@@ -212,6 +212,7 @@ private struct AppearanceSettings: View {
 
             Section("表示内容") {
                 TextField("メッセージ", text: $prefs.message, prompt: Text("このMacはロックされています"))
+                Toggle("大きな時計を表示", isOn: $prefs.showClock)
                 Toggle("経過時間を表示", isOn: $prefs.showTimer)
                 Toggle("実行中のAIエージェントを表示", isOn: $prefs.showAgents)
             }
@@ -240,7 +241,7 @@ private struct ShortcutSettings: View {
                 LabeledContent("ロック") { ShortcutRecorder(shortcut: $prefs.lockShortcut) }
                 LabeledContent("ロック解除") { ShortcutRecorder(shortcut: $prefs.unlockShortcut) }
             } footer: {
-                Text("ロック中は解除ショートカット以外のすべての入力（キーボード・マウス・トラックパッド・ジェスチャー）がブロックされます。解除ショートカットを押すと Touch ID / パスワードの認証が表示されます。")
+                Text("ロック中は解除ショートカット以外のすべての入力（キーボード・マウス・トラックパッド・ジェスチャー）がブロックされます。ロック画面の指紋ボタンをクリックするか、解除ショートカットを押すと Touch ID / パスワードの認証が表示されます。")
                     .font(.caption).foregroundColor(.secondary)
             }
             Section {

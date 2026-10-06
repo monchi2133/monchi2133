@@ -45,6 +45,7 @@ final class Preferences: ObservableObject {
     @Published var overlayStyle: OverlayStyle { didSet { defaults.set(overlayStyle.rawValue, forKey: "overlayStyle") } }
     @Published var cardPosition: CardPosition { didSet { defaults.set(cardPosition.rawValue, forKey: "cardPosition") } }
     @Published var message: String { didSet { defaults.set(message, forKey: "message") } }
+    @Published var showClock: Bool { didSet { defaults.set(showClock, forKey: "showClock") } }
     @Published var showTimer: Bool { didSet { defaults.set(showTimer, forKey: "showTimer") } }
     @Published var showAgents: Bool { didSet { defaults.set(showAgents, forKey: "showAgents") } }
     @Published var cardOnAllDisplays: Bool { didSet { defaults.set(cardOnAllDisplays, forKey: "cardOnAllDisplays") } }
@@ -62,6 +63,7 @@ final class Preferences: ObservableObject {
             "overlayStyle": OverlayStyle.clear.rawValue,
             "cardPosition": CardPosition.bottom.rawValue,
             "message": "",
+            "showClock": true,
             "showTimer": true,
             "showAgents": true,
             "cardOnAllDisplays": false,
@@ -79,6 +81,7 @@ final class Preferences: ObservableObject {
         overlayStyle = OverlayStyle(rawValue: defaults.string(forKey: "overlayStyle") ?? "") ?? .clear
         cardPosition = CardPosition(rawValue: defaults.string(forKey: "cardPosition") ?? "") ?? .bottom
         message = defaults.string(forKey: "message") ?? ""
+        showClock = defaults.bool(forKey: "showClock")
         showTimer = defaults.bool(forKey: "showTimer")
         showAgents = defaults.bool(forKey: "showAgents")
         cardOnAllDisplays = defaults.bool(forKey: "cardOnAllDisplays")

@@ -1,7 +1,10 @@
+import AppKit
 import SwiftUI
 
 struct OverlayView: View {
     let isPrimary: Bool
+    /// このオーバーレイが覆うスクリーンの frame（Cocoa 座標）
+    let screenFrame: CGRect
 
     @EnvironmentObject private var lock: LockController
     @EnvironmentObject private var prefs: Preferences
@@ -11,11 +14,20 @@ struct OverlayView: View {
 
     @State private var glow = false
     @State private var nudge = false
+    @State private var hoveringUnlock = false
 
     var body: some View {
         ZStack {
             background
             frame
+            if prefs.showClock && (isPrimary || prefs.cardOnAllDisplays) {
+                VStack {
+                    ClockView(accent: frameColor)
+                        .padding(.top, 72)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
             if isPrimary || prefs.cardOnAllDisplays {
                 VStack {
                     Spacer()
@@ -95,18 +107,7 @@ struct OverlayView: View {
                 .frame(height: 52)
                 .overlay(Color.white.opacity(0.15))
 
-            VStack(spacing: 6) {
-                Image(systemName: lock.biometryAvailable ? "touchid" : "key.fill")
-                    .font(.system(size: 26, weight: .regular))
-                    .foregroundColor(frameColor)
-                Text(prefs.unlockShortcut.displayString)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.white.opacity(0.12)))
-                    .foregroundColor(.white)
-            }
-            .frame(minWidth: 72)
+            unlockButton
         }
         .padding(.vertical, 18)
         .padding(.horizontal, 22)
@@ -127,6 +128,57 @@ struct OverlayView: View {
         .animation(.spring(response: 0.25, dampingFraction: 0.35), value: nudge)
     }
 
+    // MARK: Unlock button
+
+    /// 指紋ボタン。ロック中のクリックはイベントタップが位置で判定して認証を開始する
+    /// （SwiftUI の Button には届かない）。認証中・プレビュー時は通常のボタンとして動く。
+    private var unlockButton: some View {
+        Button(action: { LockController.shared.beginUnlock() }) {
+            VStack(spacing: 6) {
+                Image(systemName: lock.biometryAvailable ? "touchid" : "key.fill")
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundColor(hoveringUnlock ? .white : frameColor)
+                    .shadow(color: frameColor.opacity(glow ? 0.9 : 0.3), radius: glow ? 10 : 3)
+                Text(lock.state == .authenticating ? "認証中…" : "クリックで解除")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.9))
+            }
+            .frame(width: 104, height: 84)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(hoveringUnlock ? frameColor.opacity(0.35) : Color.white.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(frameColor.opacity(hoveringUnlock ? 0.95 : 0.45), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hoveringUnlock = $0 }
+        .animation(.easeOut(duration: 0.15), value: hoveringUnlock)
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { reportHotspot(geo.frame(in: .global)) }
+                    .onChange(of: geo.frame(in: .global)) { reportHotspot($0) }
+            }
+        )
+    }
+
+    /// SwiftUI のウィンドウ内座標 → CGEvent のグローバル座標（メインディスプレイ左上が原点）
+    private func reportHotspot(_ rect: CGRect) {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? screenFrame.height
+        let global = CGRect(
+            x: screenFrame.minX + rect.minX,
+            y: primaryHeight - screenFrame.maxY + rect.minY,
+            width: rect.width,
+            height: rect.height
+        )
+        // カードが揺れても押せるよう少し広めに取る
+        lock.setUnlockHotspot(global.insetBy(dx: -10, dy: -10), for: "\(screenFrame)")
+    }
+
     private var title: String {
         if lock.isPreview { return prefs.message.isEmpty ? "このMacはロックされています" : prefs.message }
         switch lock.state {
@@ -139,8 +191,8 @@ struct OverlayView: View {
 
     private var subtitle: String {
         if lock.state == .authenticating { return "キャンセルするとロック状態に戻ります" }
-        let how = lock.biometryAvailable ? "Touch ID・パスワード" : "パスワード"
-        return "入力はブロック中。作業はそのまま続いています — \(prefs.unlockShortcut.displayString) を押して\(how)で解除"
+        let how = lock.biometryAvailable ? "指紋" : "鍵"
+        return "入力はブロック中。作業はそのまま続いています — \(how)ボタンをクリックして解除（\(prefs.unlockShortcut.displayString) でも可）"
     }
 
     private var chips: some View {
@@ -199,5 +251,84 @@ private struct Chip: View {
         .padding(.vertical, 4)
         .background(Capsule().fill(highlighted ? Theme.accent.opacity(0.22) : Color.white.opacity(0.10)))
         .foregroundColor(highlighted ? Theme.accent : .white.opacity(0.85))
+    }
+}
+
+// MARK: - Clock
+
+/// ロック画面の大きな時計
+private struct ClockView: View {
+    let accent: Color
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "H:mm"
+        return f
+    }()
+
+    private static let secondsFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "ss"
+        return f
+    }()
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateFormat = "M月d日 EEEE"
+        return f
+    }()
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(spacing: 2) {
+                Text(Self.dateFormatter.string(from: context.date))
+                    .font(.system(size: 22, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.85))
+                    .tracking(2)
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(Self.timeFormatter.string(from: context.date))
+                        .font(.system(size: 132, weight: .thin, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.92), accent.opacity(0.9)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    Text(Self.secondsFormatter.string(from: context.date))
+                        .font(.system(size: 34, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(accent)
+                }
+                .shadow(color: accent.opacity(0.55), radius: 24)
+
+                SecondsBar(date: context.date, accent: accent)
+                    .frame(width: 260, height: 3)
+                    .padding(.top, 6)
+            }
+            .shadow(color: .black.opacity(0.45), radius: 12, y: 4)
+        }
+    }
+}
+
+/// 1分で一周する細いプログレスバー
+private struct SecondsBar: View {
+    let date: Date
+    let accent: Color
+
+    var body: some View {
+        let seconds = Calendar.current.component(.second, from: date)
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.15))
+                Capsule()
+                    .fill(LinearGradient(colors: [accent.opacity(0.4), accent], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: geo.size.width * CGFloat(seconds + 1) / 60)
+                    .shadow(color: accent, radius: 6)
+                    .animation(.linear(duration: 0.9), value: seconds)
+            }
+        }
     }
 }

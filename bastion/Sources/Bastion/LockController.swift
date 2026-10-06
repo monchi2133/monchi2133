@@ -29,6 +29,12 @@ final class LockController: ObservableObject {
     private var screenObserver: NSObjectProtocol?
     private var systemLockObservers: [NSObjectProtocol] = []
     private var activationObserver: NSObjectProtocol?
+    private var unlockHotspots: [String: CGRect] = [:]
+
+    /// オーバーレイの指紋ボタンの位置を登録（CG グローバル座標）
+    func setUnlockHotspot(_ rect: CGRect, for id: String) {
+        unlockHotspots[id] = rect
+    }
 
     /// 認証中は Dock・メニューバー・アプリ切替・強制終了を無効化（キオスクモード）
     private static let authPresentation: NSApplication.PresentationOptions = [
@@ -96,6 +102,9 @@ final class LockController: ObservableObject {
         let prefs = Preferences.shared
         blocker.unlockShortcut = prefs.unlockShortcut
         blocker.onUnlockShortcut = { [weak self] in self?.beginUnlock() }
+        blocker.isUnlockHotspot = { [weak self] point in
+            self?.unlockHotspots.values.contains { $0.contains(point) } ?? false
+        }
         blocker.onActivity = { [weak self] in self?.activityPulse += 1 }
 
         guard blocker.start() else {
@@ -260,6 +269,7 @@ final class LockController: ObservableObject {
     }
 
     private func hideOverlays() {
+        unlockHotspots.removeAll()
         overlays.forEach { $0.orderOut(nil) }
         overlays.removeAll()
     }
