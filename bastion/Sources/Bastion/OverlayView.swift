@@ -16,7 +16,55 @@ struct OverlayView: View {
     @State private var nudge = false
     @State private var hoveringUnlock = false
 
+    /// リモート操作中は、操作する側が画面を見やすいよう表示を小さくする
+    private var compact: Bool {
+        lock.remoteActive && prefs.remoteCompact && lock.state == .locked
+    }
+
     var body: some View {
+        ZStack {
+            if compact {
+                remotePill
+            } else {
+                fullOverlay
+            }
+        }
+        .ignoresSafeArea()
+        .environment(\.colorScheme, .dark)
+        .animation(.easeInOut(duration: 0.25), value: compact)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { glow = true }
+        }
+        .onChange(of: lock.activityPulse) { _ in shake() }
+        .onChange(of: lock.authFailed) { failed in if failed { shake() } }
+    }
+
+    /// リモート操作中の最小表示：細い枠と上部の小さなラベルだけ
+    private var remotePill: some View {
+        ZStack {
+            Rectangle()
+                .strokeBorder(frameColor.opacity(0.55), lineWidth: 2)
+            if isPrimary || prefs.cardOnAllDisplays {
+                VStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                        Text("ロック中 · リモート操作中")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .overlay(Capsule().strokeBorder(frameColor.opacity(0.7), lineWidth: 1))
+                    .foregroundColor(.white)
+                    .padding(.top, 34)
+                    Spacer()
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var fullOverlay: some View {
         ZStack {
             background
             frame
@@ -42,13 +90,6 @@ struct OverlayView: View {
                 .padding(.horizontal, 24)
             }
         }
-        .ignoresSafeArea()
-        .environment(\.colorScheme, .dark)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { glow = true }
-        }
-        .onChange(of: lock.activityPulse) { _ in shake() }
-        .onChange(of: lock.authFailed) { failed in if failed { shake() } }
     }
 
     // MARK: Background

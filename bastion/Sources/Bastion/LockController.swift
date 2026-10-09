@@ -16,6 +16,10 @@ final class LockController: ObservableObject {
     @Published private(set) var activityPulse = 0
     @Published private(set) var authFailed = false
     @Published private(set) var autoUnlockAt: Date?
+    /// リモートデスクトップから操作されている（最後のリモート入力から 10 秒以内）
+    @Published private(set) var remoteActive = false
+    /// 最後にブロックした「プログラムが送り込んだ入力」の送り元（診断用）
+    @Published private(set) var lastBlockedSource: String?
 
     var onNeedsPermission: (() -> Void)?
 
@@ -30,6 +34,8 @@ final class LockController: ObservableObject {
     private var systemLockObservers: [NSObjectProtocol] = []
     private var activationObserver: NSObjectProtocol?
     private var unlockHotspots: [String: CGRect] = [:]
+    private var lastRemoteInput = Date.distantPast
+    private var remoteTimer: Timer?
 
     /// オーバーレイの指紋ボタンの位置を登録（CG グローバル座標）
     func setUnlockHotspot(_ rect: CGRect, for id: String) {
@@ -105,7 +111,15 @@ final class LockController: ObservableObject {
         blocker.isUnlockHotspot = { [weak self] point in
             self?.unlockHotspots.values.contains { $0.contains(point) } ?? false
         }
-        blocker.onActivity = { [weak self] in self?.activityPulse += 1 }
+        blocker.onActivity = { [weak self] in
+            guard let self else { return }
+            self.activityPulse += 1
+            // 手元で誰かが触った → 解除ボタンが見えるよう通常表示に戻す
+            if self.remoteActive { self.remoteActive = false }
+        }
+        blocker.allowRemoteInput = prefs.allowRemoteControl
+        blocker.onRemoteInput = { [weak self] in self?.remoteInputReceived() }
+        blocker.onBlockedSource = { [weak self] in self?.lastBlockedSource = $0 }
 
         guard blocker.start() else {
             let alert = NSAlert()
@@ -148,7 +162,10 @@ final class LockController: ObservableObject {
         // 認証ダイアログを操作できるよう一時的に入力を通す。
         // オーバーレイは画面を覆ったまま残し、背後のアプリへのクリックは届かない。
         blocker.passThrough = true
-        overlays.forEach { $0.level = .floating }
+        overlays.forEach {
+            $0.level = .floating
+            $0.ignoresMouseEvents = false // 認証中は背後のアプリへのクリックをオーバーレイで受け止める
+        }
         previousApp = NSWorkspace.shared.frontmostApplication
         NSApp.activate(ignoringOtherApps: true)
         NSApp.presentationOptions = Self.authPresentation
@@ -208,6 +225,7 @@ final class LockController: ObservableObject {
         state = .locked
         overlays.forEach {
             $0.level = .screenSaver
+            $0.ignoresMouseEvents = overlayPassesClicks
             $0.orderFrontRegardless()
         }
     }
@@ -223,6 +241,9 @@ final class LockController: ObservableObject {
         blocker.stop()
         authenticator.cancel()
         hideOverlays()
+        remoteTimer?.invalidate()
+        remoteTimer = nil
+        remoteActive = false
         state = .unlocked
         lockedAt = nil
         authFailed = false
@@ -263,8 +284,30 @@ final class LockController: ObservableObject {
             OverlayWindow(screen: screen, isPrimary: screen == primary)
         }
         overlays.forEach {
-            if isPreview { $0.ignoresMouseEvents = true }
+            if isPreview || overlayPassesClicks { $0.ignoresMouseEvents = true }
             $0.orderFrontRegardless()
+        }
+    }
+
+    /// リモート操作を許可しているときは、リモートからのクリックが背後のアプリに届くよう
+    /// オーバーレイをクリック透過にする（手元のクリックはイベントタップで止まる）
+    private var overlayPassesClicks: Bool {
+        state == .locked && Preferences.shared.allowRemoteControl
+    }
+
+    private func remoteInputReceived() {
+        guard state == .locked else { return }
+        lastRemoteInput = Date()
+        if !remoteActive { remoteActive = true }
+        if remoteTimer == nil {
+            remoteTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+                guard let self else { timer.invalidate(); return }
+                if self.state == .unlocked || Date().timeIntervalSince(self.lastRemoteInput) > 10 {
+                    self.remoteActive = false
+                    timer.invalidate()
+                    self.remoteTimer = nil
+                }
+            }
         }
     }
 

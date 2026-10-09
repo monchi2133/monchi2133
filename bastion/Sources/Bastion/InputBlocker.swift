@@ -1,5 +1,6 @@
 import Carbon.HIToolbox
 import CoreGraphics
+import Darwin
 import Foundation
 
 /// CGEventTap で HID レベルのすべての入力（キーボード・マウス・トラックパッド・ジェスチャー）を破棄する。
@@ -13,6 +14,21 @@ final class InputBlocker {
 
     /// true の間は入力を通す（認証ダイアログの操作用）
     var passThrough = false
+
+    /// ロック中もリモートデスクトップ（画面共有・Chrome リモートデスクトップ）からの入力を通す
+    var allowRemoteInput = false
+    var onRemoteInput: (() -> Void)?
+    /// ブロックしたプログラム由来の入力の送り元（設定画面の診断表示用）
+    var onBlockedSource: ((String) -> Void)?
+
+    /// リモートデスクトップの入力を送り込むプロセス名・パスに含まれる文字列
+    private static let remoteSourceHints = [
+        "screensharingd", "screensharingagent", "screen sharing",          // macOS 画面共有
+        "remoting_me2me_host", "chromeremotedesktop", "chrome remote desktop", // Chrome リモートデスクトップ
+    ]
+    private var remoteSourceCache: [pid_t: Bool] = [:]
+    private var lastRemoteNotice = Date.distantPast
+    private var lastBlockedNotice = Date.distantPast
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
@@ -38,6 +54,7 @@ final class InputBlocker {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: newTap, enable: true)
         passThrough = false
+        remoteSourceCache.removeAll()
         return true
     }
 
@@ -67,6 +84,31 @@ final class InputBlocker {
         return [160, 131, 177, kVK_F3, kVK_F4].contains(code)
     }
 
+    private func isRemoteSource(_ pid: pid_t) -> Bool {
+        if let cached = remoteSourceCache[pid] { return cached }
+        let name = Self.processDescription(pid).lowercased()
+        let isRemote = Self.remoteSourceHints.contains { name.contains($0) }
+        remoteSourceCache[pid] = isRemote
+        return isRemote
+    }
+
+    private func noteBlockedSource(_ pid: pid_t) {
+        let now = Date()
+        guard now.timeIntervalSince(lastBlockedNotice) > 2 else { return }
+        lastBlockedNotice = now
+        let description = Self.processDescription(pid)
+        DispatchQueue.main.async { [weak self] in self?.onBlockedSource?(description) }
+    }
+
+    /// "プロセス名 (実行ファイルのパス)"
+    static func processDescription(_ pid: pid_t) -> String {
+        var nameBuffer = [CChar](repeating: 0, count: 256)
+        var pathBuffer = [CChar](repeating: 0, count: 4096)
+        let name = proc_name(pid, &nameBuffer, UInt32(nameBuffer.count)) > 0 ? String(cString: nameBuffer) : "pid \(pid)"
+        let path = proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 ? String(cString: pathBuffer) : ""
+        return path.isEmpty ? name : "\(name) (\(path))"
+    }
+
     fileprivate func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
@@ -74,6 +116,21 @@ final class InputBlocker {
         }
         if passThrough {
             return Self.isEscapeAttempt(type: type, event: event) ? nil : Unmanaged.passUnretained(event)
+        }
+        // 手元のキーボード・マウスの入力は送り元 PID が 0。プログラムが送り込んだ入力だけ送り元を調べる。
+        let sourcePID = pid_t(truncatingIfNeeded: event.getIntegerValueField(.eventSourceUnixProcessID))
+        if sourcePID > 0 {
+            if allowRemoteInput && isRemoteSource(sourcePID) {
+                let now = Date()
+                if now.timeIntervalSince(lastRemoteNotice) > 1 {
+                    lastRemoteNotice = now
+                    DispatchQueue.main.async { [weak self] in self?.onRemoteInput?() }
+                }
+                return Unmanaged.passUnretained(event)
+            }
+            if type != .mouseMoved {
+                noteBlockedSource(sourcePID)
+            }
         }
         // カーソル移動だけは通す（指紋ボタンまで動かせるように）。クリックやドラッグは通さない。
         if type == .mouseMoved {

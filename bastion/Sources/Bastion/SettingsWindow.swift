@@ -79,6 +79,8 @@ private struct GeneralSettings: View {
 
             ClosedLidSection()
 
+            RemoteControlSection()
+
             Section("ロック解除") {
                 Toggle("解除に Touch ID / パスワードを要求", isOn: $prefs.requireAuth)
                 Picker("自動解除", selection: $prefs.autoUnlockMinutes) {
@@ -117,6 +119,32 @@ private struct GeneralSettings: View {
         .formStyle(.grouped)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             trusted = Permissions.isAccessibilityTrusted
+        }
+    }
+}
+
+// MARK: - リモート操作
+
+private struct RemoteControlSection: View {
+    @EnvironmentObject private var prefs: Preferences
+    @EnvironmentObject private var lock: LockController
+
+    var body: some View {
+        Section {
+            Toggle("ロック中もリモートデスクトップからの操作を許可", isOn: $prefs.allowRemoteControl)
+            Toggle("リモート操作中はロック表示を小さくする", isOn: $prefs.remoteCompact)
+                .disabled(!prefs.allowRemoteControl)
+            if prefs.allowRemoteControl, let source = lock.lastBlockedSource {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("最後にブロックした入力の送り元").font(.caption).foregroundColor(.secondary)
+                    Text(source).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                }
+            }
+        } header: {
+            Text("リモート操作")
+        } footer: {
+            Text("macOS の画面共有と Chrome リモートデスクトップに対応しています。目の前の Mac のキーボード・マウスはロックしたまま、リモートからは画面を見て操作できます。リモート操作が効かない場合は、ロック中にリモートから操作したあと、上の「送り元」の表示を開発者に伝えてください。設定の変更は次のロックから反映されます。")
+                .font(.caption).foregroundColor(.secondary)
         }
     }
 }
