@@ -43,6 +43,7 @@ final class Preferences: ObservableObject {
     @Published var clamshellMinBattery: Int { didSet { defaults.set(clamshellMinBattery, forKey: "clamshellMinBattery") } }
 
     @Published var allowRemoteControl: Bool { didSet { defaults.set(allowRemoteControl, forKey: "allowRemoteControl") } }
+    @Published var remoteCurtain: Bool { didSet { defaults.set(remoteCurtain, forKey: "remoteCurtain") } }
     @Published var remoteCompact: Bool { didSet { defaults.set(remoteCompact, forKey: "remoteCompact") } }
 
     @Published var requireAuth: Bool { didSet { defaults.set(requireAuth, forKey: "requireAuth") } }
@@ -68,6 +69,7 @@ final class Preferences: ObservableObject {
             "clamshellMinBattery": 20,
             "allowRemoteControl": false,
             "remoteCompact": true,
+            "remoteCurtain": true,
             "requireAuth": true,
             "autoUnlockMinutes": 0,
             "overlayStyle": OverlayStyle.clear.rawValue,
@@ -89,6 +91,7 @@ final class Preferences: ObservableObject {
         clamshellThermalGuard = defaults.bool(forKey: "clamshellThermalGuard")
         clamshellMinBattery = defaults.integer(forKey: "clamshellMinBattery")
         allowRemoteControl = defaults.bool(forKey: "allowRemoteControl")
+        remoteCurtain = defaults.bool(forKey: "remoteCurtain")
         remoteCompact = defaults.bool(forKey: "remoteCompact")
         requireAuth = defaults.bool(forKey: "requireAuth")
         autoUnlockMinutes = defaults.integer(forKey: "autoUnlockMinutes")

@@ -18,7 +18,7 @@ struct OverlayView: View {
 
     /// リモート操作中は、操作する側が画面を見やすいよう表示を小さくする
     private var compact: Bool {
-        lock.remoteActive && prefs.remoteCompact && lock.state == .locked
+        lock.remoteActive && (prefs.remoteCompact || lock.curtainEnabled) && lock.state == .locked
     }
 
     var body: some View {
@@ -96,6 +96,16 @@ struct OverlayView: View {
 
     @ViewBuilder
     private var background: some View {
+        if lock.curtainEnabled && lock.remoteSessionSeen && lock.isLocked {
+            // カーテンモードでリモート操作が止まっている間は、目の前の人に中身を見せない
+            LinearGradient(colors: [Color(white: 0.06), Color(white: 0.0)], startPoint: .top, endPoint: .bottom)
+        } else {
+            styledBackground
+        }
+    }
+
+    @ViewBuilder
+    private var styledBackground: some View {
         switch prefs.overlayStyle {
         case .clear:
             // 完全な透明だとクリックが背後に抜けるため、ごくわずかに色を付ける

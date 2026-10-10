@@ -10,14 +10,23 @@ final class LockController: ObservableObject {
         case authenticating
     }
 
-    @Published private(set) var state: State = .unlocked
+    @Published private(set) var state: State = .unlocked {
+        didSet { updateCurtain() }
+    }
     @Published private(set) var lockedAt: Date?
     @Published private(set) var isPreview = false
     @Published private(set) var activityPulse = 0
     @Published private(set) var authFailed = false
     @Published private(set) var autoUnlockAt: Date?
     /// リモートデスクトップから操作されている（最後のリモート入力から 10 秒以内）
-    @Published private(set) var remoteActive = false
+    @Published private(set) var remoteActive = false {
+        didSet {
+            if remoteActive { remoteSessionSeen = true }
+            updateCurtain()
+        }
+    }
+    /// このロック中に一度でもリモート操作があった（カーテンモードではロック画面を不透明にする）
+    @Published private(set) var remoteSessionSeen = false
     /// 最後にブロックした「プログラムが送り込んだ入力」の送り元（診断用）
     @Published private(set) var lastBlockedSource: String?
 
@@ -58,6 +67,7 @@ final class LockController: ObservableObject {
         ) { [weak self] _ in
             guard let self, !self.overlays.isEmpty else { return }
             self.showOverlays()
+            if Curtain.isDrawn { Curtain.draw() }
         }
 
         // 蓋を閉じて画面がスリープすると macOS 自体のロック画面が出ることがある。
@@ -116,6 +126,10 @@ final class LockController: ObservableObject {
             self.activityPulse += 1
             // 手元で誰かが触った → 解除ボタンが見えるよう通常表示に戻す
             if self.remoteActive { self.remoteActive = false }
+        }
+        blocker.onLocalPointer = { [weak self] in
+            // 目の前でマウスが動いた → カーテンを開けて解除ボタンを見せる
+            if self?.remoteActive == true { self?.remoteActive = false }
         }
         blocker.allowRemoteInput = prefs.allowRemoteControl
         blocker.onRemoteInput = { [weak self] in self?.remoteInputReceived() }
@@ -244,6 +258,7 @@ final class LockController: ObservableObject {
         remoteTimer?.invalidate()
         remoteTimer = nil
         remoteActive = false
+        remoteSessionSeen = false
         state = .unlocked
         lockedAt = nil
         authFailed = false
@@ -293,6 +308,19 @@ final class LockController: ObservableObject {
     /// オーバーレイをクリック透過にする（手元のクリックはイベントタップで止まる）
     private var overlayPassesClicks: Bool {
         state == .locked && Preferences.shared.allowRemoteControl
+    }
+
+    /// カーテンモードが有効なとき、リモート操作中だけ目の前の画面を真っ暗にする
+    var curtainEnabled: Bool {
+        Preferences.shared.allowRemoteControl && Preferences.shared.remoteCurtain
+    }
+
+    private func updateCurtain() {
+        if remoteActive && state == .locked && curtainEnabled {
+            Curtain.draw()
+        } else {
+            Curtain.open()
+        }
     }
 
     private func remoteInputReceived() {

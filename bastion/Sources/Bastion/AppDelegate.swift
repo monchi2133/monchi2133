@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         LockController.shared.unlock()
+        Curtain.open()
         PowerManager.shared.releaseAll()
     }
 

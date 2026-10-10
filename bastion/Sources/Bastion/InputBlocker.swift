@@ -11,6 +11,9 @@ final class InputBlocker {
     /// ロック画面の指紋ボタンの位置（グローバル座標）か判定する
     var isUnlockHotspot: ((CGPoint) -> Bool)?
     var onActivity: (() -> Void)?
+    /// 手元のマウスが動いた（目の前に人がいる）
+    var onLocalPointer: (() -> Void)?
+    private var lastLocalPointer = Date.distantPast
 
     /// true の間は入力を通す（認証ダイアログの操作用）
     var passThrough = false
@@ -134,6 +137,13 @@ final class InputBlocker {
         }
         // カーソル移動だけは通す（指紋ボタンまで動かせるように）。クリックやドラッグは通さない。
         if type == .mouseMoved {
+            if sourcePID == 0 {
+                let now = Date()
+                if now.timeIntervalSince(lastLocalPointer) > 1 {
+                    lastLocalPointer = now
+                    DispatchQueue.main.async { [weak self] in self?.onLocalPointer?() }
+                }
+            }
             return Unmanaged.passUnretained(event)
         }
         if type == .leftMouseDown, isUnlockHotspot?(event.location) == true {

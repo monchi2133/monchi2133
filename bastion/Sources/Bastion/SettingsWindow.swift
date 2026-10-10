@@ -132,8 +132,10 @@ private struct RemoteControlSection: View {
     var body: some View {
         Section {
             Toggle("ロック中もリモートデスクトップからの操作を許可", isOn: $prefs.allowRemoteControl)
-            Toggle("リモート操作中はロック表示を小さくする", isOn: $prefs.remoteCompact)
+            Toggle("リモート操作中は目の前の画面を真っ暗にする（カーテンモード）", isOn: $prefs.remoteCurtain)
                 .disabled(!prefs.allowRemoteControl)
+            Toggle("リモート操作中はロック表示を小さくする", isOn: $prefs.remoteCompact)
+                .disabled(!prefs.allowRemoteControl || prefs.remoteCurtain)
             if prefs.allowRemoteControl, let source = lock.lastBlockedSource {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("最後にブロックした入力の送り元").font(.caption).foregroundColor(.secondary)
@@ -143,7 +145,7 @@ private struct RemoteControlSection: View {
         } header: {
             Text("リモート操作")
         } footer: {
-            Text("macOS の画面共有と Chrome リモートデスクトップに対応しています。目の前の Mac のキーボード・マウスはロックしたまま、リモートからは画面を見て操作できます。リモート操作が効かない場合は、ロック中にリモートから操作したあと、上の「送り元」の表示を開発者に伝えてください。設定の変更は次のロックから反映されます。")
+            Text("macOS の画面共有と Chrome リモートデスクトップに対応しています。目の前の Mac のキーボード・マウスはロックしたまま、リモートからは画面を見て操作できます。カーテンモードでは、リモート操作中は目の前の画面が真っ暗になり、操作が止まると中身を隠したロック画面になります。目の前でマウスに触れるとロック画面が表示され、指紋ボタンで解除できます。リモート操作が効かない場合は、ロック中にリモートから操作したあと、上の「送り元」の表示を開発者に伝えてください。設定の変更は次のロックから反映されます。")
                 .font(.caption).foregroundColor(.secondary)
         }
     }
