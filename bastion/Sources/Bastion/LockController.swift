@@ -29,6 +29,9 @@ final class LockController: ObservableObject {
     @Published private(set) var remoteSessionSeen = false
     /// 最後にブロックした「プログラムが送り込んだ入力」の送り元（診断用）
     @Published private(set) var lastBlockedSource: String?
+    /// キーボード掃除モードの終了予定時刻（表示用）
+    @Published private(set) var cleaningUntil: Date?
+    var isCleaning: Bool { cleaningUntil != nil }
 
     var onNeedsPermission: (() -> Void)?
 
@@ -45,6 +48,8 @@ final class LockController: ObservableObject {
     private var unlockHotspots: [String: CGRect] = [:]
     private var lastRemoteInput = Date.distantPast
     private var remoteTimer: Timer?
+    private var lastIntrusion = Date.distantPast
+    private var cleaningTimer: Timer?
 
     /// オーバーレイの指紋ボタンの位置を登録（CG グローバル座標）
     func setUnlockHotspot(_ rect: CGRect, for id: String) {
@@ -126,6 +131,9 @@ final class LockController: ObservableObject {
             self.activityPulse += 1
             // 手元で誰かが触った → 解除ボタンが見えるよう通常表示に戻す
             if self.remoteActive { self.remoteActive = false }
+            if !self.isCleaning, Preferences.shared.intruderOnTamper {
+                self.handleIntrusion()
+            }
         }
         blocker.onLocalPointer = { [weak self] in
             // 目の前でマウスが動いた → カーテンを開けて解除ボタンを見せる
@@ -138,7 +146,7 @@ final class LockController: ObservableObject {
         guard blocker.start() else {
             let alert = NSAlert()
             alert.messageText = "入力をロックできませんでした"
-            alert.informativeText = "システム設定 › プライバシーとセキュリティ › アクセシビリティ で Bastion を許可してください。"
+            alert.informativeText = "システム設定 › プライバシーとセキュリティ › アクセシビリティ で るすばん を許可してください。"
             alert.addButton(withTitle: "システム設定を開く")
             alert.addButton(withTitle: "閉じる")
             NSApp.activate(ignoringOtherApps: true)
@@ -166,6 +174,7 @@ final class LockController: ObservableObject {
 
     func beginUnlock() {
         guard state == .locked else { return }
+        if isCleaning { unlock(); return }
         guard Preferences.shared.requireAuth else {
             unlock()
             return
@@ -237,6 +246,7 @@ final class LockController: ObservableObject {
         blocker.passThrough = false
         authFailed = true
         state = .locked
+        if Preferences.shared.intruderOnFailedAuth { handleIntrusion() }
         overlays.forEach {
             $0.level = .screenSaver
             $0.ignoresMouseEvents = overlayPassesClicks
@@ -259,6 +269,9 @@ final class LockController: ObservableObject {
         remoteTimer = nil
         remoteActive = false
         remoteSessionSeen = false
+        cleaningTimer?.invalidate()
+        cleaningTimer = nil
+        cleaningUntil = nil
         state = .unlocked
         lockedAt = nil
         authFailed = false
@@ -266,6 +279,35 @@ final class LockController: ObservableObject {
             app.activate(options: [])
         }
         previousApp = nil
+    }
+
+    // MARK: - キーボード掃除モード
+
+    /// 数十秒だけ入力をロックして拭き掃除できるようにする（認証なしで自動解除）
+    func startCleaning(seconds: Int) {
+        guard state == .unlocked else { return }
+        lock()
+        guard state == .locked else { return }
+        autoUnlockTimer?.invalidate()
+        autoUnlockTimer = nil
+        autoUnlockAt = nil
+        cleaningUntil = Date().addingTimeInterval(TimeInterval(seconds))
+        cleaningTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(seconds), repeats: false) { [weak self] _ in
+            self?.unlock()
+        }
+    }
+
+    // MARK: - 侵入検知
+
+    private func handleIntrusion() {
+        guard Date().timeIntervalSince(lastIntrusion) > 20 else { return }
+        lastIntrusion = Date()
+        let date = Date()
+        if Preferences.shared.intruderEnabled {
+            IntruderCapture.shared.capture { url in Notifier.shared.intruder(at: date, imageURL: url) }
+        } else {
+            Notifier.shared.intruder(at: date, imageURL: nil)
+        }
     }
 
     // MARK: - Preview

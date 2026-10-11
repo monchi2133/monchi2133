@@ -18,8 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         AgentMonitor.shared.start()
+        AgentMonitor.shared.onAllFinished = { detail in Notifier.shared.agentFinished(detail) }
+        AgentStatus.shared.start()
         HotCornerMonitor.shared.start()
+        ProximityMonitor.shared.start()
         ClamshellManager.shared.recoverOnLaunch()
+        IntruderCapture.shared.purgeOld()
 
         // 設定・ロック状態・エージェント検出が変わったらスリープ防止を再評価
         Publishers.Merge3(

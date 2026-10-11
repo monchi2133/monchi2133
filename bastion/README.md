@@ -1,4 +1,4 @@
-# Bastion — 画面は見えたまま、入力だけロック
+# るすばん（Rusuban）— 画面は見えたまま、入力だけロック
 
 [Warden](https://www.getwarden.org/) を参考にした macOS メニューバーアプリです。
 キーボード・マウス・トラックパッド・ジェスチャーの入力をブロックしつつ、画面は表示したまま、
@@ -18,6 +18,12 @@ Claude Code / Codex / Cursor などの AI エージェントやビルド・レ�
 | ショートカット | ロック（既定 `⌘⇧L`）と解除を自由に変更可能 |
 | スリープ防止 | ロック中は IOPMAssertion でスリープを防止（ディスプレイ点灯の有無も選択） |
 | AI エージェント検出 | Claude Code / Codex / Cursor Agent / Gemini CLI / Aider / OpenCode などを自動検出し、ロック画面に「実行中」と表示 |
+| スマホ通知 | AI が完了／入力待ちになったとき、ロック中に操作を検知したときに iPhone へ通知（Pushover / Slack / 汎用Webhook）。設定 › 通知 |
+| AI の進み具合表示 | フックが書いた状態（例「テスト実行中 (3/5)」）をロック画面に表示。設定 › ロック画面 |
+| 侵入者の記録 | ロック中の操作・解除失敗時にカメラで静止画を1枚保存（~/Pictures/Rusuban、30日で自動削除）。通知オンで写真を添付。設定 › みはり |
+| AI完了で省電力 | AIが終わったらロックは維持したままスリープ防止だけ解除。設定 › 一般 |
+| 近接オート解除（実験的） | ペアリング済み iPhone / Apple Watch が接続したら自動解除。設定 › みはり |
+| キーボード掃除モード | 数十秒だけ入力をロックして拭き掃除。メニューバー →「キーボード掃除モード（30秒）」 |
 | エージェント実行中のスリープ防止 | ロックしていなくても、エージェントが動いている間だけ Mac を起こしておくオプション |
 | 蓋を閉じても動く | 外部ディスプレイなしで蓋を閉じてもスリープしない（`pmset disablesleep`）。高温・バッテリー低下で自動停止 |
 | 自動解除タイマー | 15分〜8時間後に自動で解除（任意） |
@@ -93,3 +99,35 @@ Sources/Bastion/
   MenuBarController.swift          メニューバー
   SettingsWindow.swift             設定画面
 ```
+
+
+## AI の進み具合・入力待ち通知（Claude Code フック連携）
+
+ロック画面に「Claude Code：テスト実行中 (3/5)」のように出したり、「入力待ちになった」をスマホに通知したりするには、
+AI 側から状態を知らせます。方法は状態ファイルを書くだけです。
+
+状態ファイル: `~/.rusuban/status.json`
+
+```json
+{ "tool": "Claude Code", "state": "running", "message": "テスト実行中", "progress": "3/5" }
+```
+
+- `state` … `running`（実行中）/ `waiting`（入力待ち）/ `done`（完了）
+- `message`, `progress` … 任意。ロック画面にそのまま出ます。
+- 5 分以上更新が無いファイルは無視します。
+
+Claude Code の設定（`~/.claude/settings.json`）に次のフックを入れると自動で書き込めます。
+
+```json
+{
+  "hooks": {
+    "Notification": [{ "hooks": [{ "type": "command",
+      "command": "mkdir -p ~/.rusuban && printf '{\"tool\":\"Claude Code\",\"state\":\"waiting\",\"message\":\"入力待ち\"}' > ~/.rusuban/status.json" }] }],
+    "Stop": [{ "hooks": [{ "type": "command",
+      "command": "mkdir -p ~/.rusuban && printf '{\"tool\":\"Claude Code\",\"state\":\"done\"}' > ~/.rusuban/status.json" }] }]
+  }
+}
+```
+
+フックを入れなくても、実行中プロセスの検出だけで「実行中／完了」は分かり、完了通知も届きます。
+`waiting`（入力待ち）の通知とロック画面の詳細表示だけがフックに依存します。

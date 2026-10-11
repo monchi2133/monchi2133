@@ -14,6 +14,9 @@ let package = Package(
                 .linkedFramework("IOKit"),
                 .linkedFramework("LocalAuthentication"),
                 .linkedFramework("ServiceManagement"),
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreMedia"),
+                .linkedFramework("IOBluetooth"),
             ]
         )
     ]

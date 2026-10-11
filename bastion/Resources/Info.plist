@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.monchi2133.bastion</string>
     <key>CFBundleName</key>
-    <string>Bastion</string>
+    <string>るすばん</string>
     <key>CFBundleDisplayName</key>
-    <string>Bastion</string>
+    <string>るすばん</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -25,6 +25,8 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>Input lock for long-running AI agents.</string>
+    <string>席を外しても AI が働き続ける入力ロック。</string>
+    <key>NSCameraUsageDescription</key>
+    <string>ロック中の操作者や解除失敗を記録するために、カメラで静止画を撮影します。</string>
 </dict>
 </plist>

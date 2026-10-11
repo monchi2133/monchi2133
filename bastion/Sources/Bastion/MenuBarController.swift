@@ -32,7 +32,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "Bastion")
         image?.isTemplate = true
         statusItem.button?.image = image
-        statusItem.button?.toolTip = locked ? "Bastion — ロック中" : "Bastion"
+        statusItem.button?.toolTip = locked ? "るすばん — ロック中" : "るすばん"
     }
 
     // MARK: NSMenuDelegate
@@ -42,7 +42,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let prefs = Preferences.shared
         let agents = AgentMonitor.shared.agents
 
-        let header = NSMenuItem(title: "Bastion", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "るすばん", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
@@ -82,6 +82,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         applyShortcut(prefs.lockShortcut, to: lockItem)
         menu.addItem(lockItem)
 
+        let cleaning = NSMenuItem(title: "キーボード掃除モード（30秒）", action: #selector(startCleaning), keyEquivalent: "")
+        cleaning.target = self
+        cleaning.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
+        menu.addItem(cleaning)
+
         menu.addItem(.separator())
 
         menu.addItem(toggle("ロック中はスリープを防止", on: prefs.preventSleep, action: #selector(togglePreventSleep)))
@@ -94,7 +99,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         settings.target = self
         menu.addItem(settings)
 
-        let about = NSMenuItem(title: "Bastion について", action: #selector(showAbout), keyEquivalent: "")
+        let about = NSMenuItem(title: "るすばん について", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
 
@@ -119,6 +124,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     // MARK: Actions
+
+    @objc private func startCleaning() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { LockController.shared.startCleaning(seconds: 30) }
+    }
 
     @objc private func lockNow() {
         // メニューが閉じてからロックする

@@ -6,6 +6,9 @@ final class AgentMonitor: ObservableObject {
     static let shared = AgentMonitor()
 
     @Published private(set) var agents: [String] = []
+    /// 実行中 → 全部終了 に変わったとき（検出した最後のツール名つき）
+    var onAllFinished: ((String) -> Void)?
+    private var lastNonEmpty: [String] = []
 
     private var timer: Timer?
     private let queue = DispatchQueue(label: "bastion.agent-monitor", qos: .utility)
@@ -56,7 +59,12 @@ final class AgentMonitor: ObservableObject {
         queue.async {
             let found = Self.detect()
             DispatchQueue.main.async {
+                let hadAgents = !self.agents.isEmpty
                 if found != self.agents { self.agents = found }
+                if !found.isEmpty { self.lastNonEmpty = found }
+                if hadAgents && found.isEmpty {
+                    self.onAllFinished?(self.lastNonEmpty.joined(separator: "・"))
+                }
             }
         }
     }

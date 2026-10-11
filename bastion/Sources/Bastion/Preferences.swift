@@ -23,6 +23,18 @@ enum CardPosition: String, CaseIterable, Identifiable {
     }
 }
 
+enum NotifyProvider: String, CaseIterable, Identifiable {
+    case pushover, slack, webhook
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .pushover: return "Pushover"
+        case .slack: return "Slack"
+        case .webhook: return "汎用Webhook"
+        }
+    }
+}
+
 final class Preferences: ObservableObject {
     static let shared = Preferences()
 
@@ -56,6 +68,30 @@ final class Preferences: ObservableObject {
     @Published var showTimer: Bool { didSet { defaults.set(showTimer, forKey: "showTimer") } }
     @Published var showAgents: Bool { didSet { defaults.set(showAgents, forKey: "showAgents") } }
     @Published var cardOnAllDisplays: Bool { didSet { defaults.set(cardOnAllDisplays, forKey: "cardOnAllDisplays") } }
+    @Published var showAgentProgress: Bool { didSet { defaults.set(showAgentProgress, forKey: "showAgentProgress") } }
+
+    // 通知
+    @Published var notifyEnabled: Bool { didSet { defaults.set(notifyEnabled, forKey: "notifyEnabled") } }
+    @Published var notifyProvider: NotifyProvider { didSet { defaults.set(notifyProvider.rawValue, forKey: "notifyProvider") } }
+    @Published var pushoverToken: String { didSet { defaults.set(pushoverToken, forKey: "pushoverToken") } }
+    @Published var pushoverUser: String { didSet { defaults.set(pushoverUser, forKey: "pushoverUser") } }
+    @Published var slackWebhook: String { didSet { defaults.set(slackWebhook, forKey: "slackWebhook") } }
+    @Published var webhookURL: String { didSet { defaults.set(webhookURL, forKey: "webhookURL") } }
+    @Published var notifyOnFinish: Bool { didSet { defaults.set(notifyOnFinish, forKey: "notifyOnFinish") } }
+    @Published var notifyOnWaiting: Bool { didSet { defaults.set(notifyOnWaiting, forKey: "notifyOnWaiting") } }
+    @Published var notifyOnIntruder: Bool { didSet { defaults.set(notifyOnIntruder, forKey: "notifyOnIntruder") } }
+
+    // 侵入者の記録（カメラ）
+    @Published var intruderEnabled: Bool { didSet { defaults.set(intruderEnabled, forKey: "intruderEnabled") } }
+    @Published var intruderOnFailedAuth: Bool { didSet { defaults.set(intruderOnFailedAuth, forKey: "intruderOnFailedAuth") } }
+    @Published var intruderOnTamper: Bool { didSet { defaults.set(intruderOnTamper, forKey: "intruderOnTamper") } }
+
+    // AI が終わったらスリープ防止を自動解除（ロックは維持）
+    @Published var releaseSleepWhenDone: Bool { didSet { defaults.set(releaseSleepWhenDone, forKey: "releaseSleepWhenDone") } }
+
+    // 近接オート解除（実験的・Bluetooth）
+    @Published var proximityEnabled: Bool { didSet { defaults.set(proximityEnabled, forKey: "proximityEnabled") } }
+    @Published var proximityDevice: String { didSet { defaults.set(proximityDevice, forKey: "proximityDevice") } }
 
     private init() {
         defaults.register(defaults: [
@@ -79,6 +115,22 @@ final class Preferences: ObservableObject {
             "showTimer": true,
             "showAgents": true,
             "cardOnAllDisplays": false,
+            "showAgentProgress": true,
+            "notifyEnabled": false,
+            "notifyProvider": NotifyProvider.pushover.rawValue,
+            "pushoverToken": "",
+            "pushoverUser": "",
+            "slackWebhook": "",
+            "webhookURL": "",
+            "notifyOnFinish": true,
+            "notifyOnWaiting": true,
+            "notifyOnIntruder": true,
+            "intruderEnabled": false,
+            "intruderOnFailedAuth": true,
+            "intruderOnTamper": false,
+            "releaseSleepWhenDone": true,
+            "proximityEnabled": false,
+            "proximityDevice": "",
         ])
         lockShortcut = Self.load("lockShortcut", from: defaults) ?? .defaultLock
         unlockShortcut = Self.load("unlockShortcut", from: defaults) ?? .defaultUnlock
@@ -102,6 +154,22 @@ final class Preferences: ObservableObject {
         showTimer = defaults.bool(forKey: "showTimer")
         showAgents = defaults.bool(forKey: "showAgents")
         cardOnAllDisplays = defaults.bool(forKey: "cardOnAllDisplays")
+        showAgentProgress = defaults.bool(forKey: "showAgentProgress")
+        notifyEnabled = defaults.bool(forKey: "notifyEnabled")
+        notifyProvider = NotifyProvider(rawValue: defaults.string(forKey: "notifyProvider") ?? "") ?? .pushover
+        pushoverToken = defaults.string(forKey: "pushoverToken") ?? ""
+        pushoverUser = defaults.string(forKey: "pushoverUser") ?? ""
+        slackWebhook = defaults.string(forKey: "slackWebhook") ?? ""
+        webhookURL = defaults.string(forKey: "webhookURL") ?? ""
+        notifyOnFinish = defaults.bool(forKey: "notifyOnFinish")
+        notifyOnWaiting = defaults.bool(forKey: "notifyOnWaiting")
+        notifyOnIntruder = defaults.bool(forKey: "notifyOnIntruder")
+        intruderEnabled = defaults.bool(forKey: "intruderEnabled")
+        intruderOnFailedAuth = defaults.bool(forKey: "intruderOnFailedAuth")
+        intruderOnTamper = defaults.bool(forKey: "intruderOnTamper")
+        releaseSleepWhenDone = defaults.bool(forKey: "releaseSleepWhenDone")
+        proximityEnabled = defaults.bool(forKey: "proximityEnabled")
+        proximityDevice = defaults.string(forKey: "proximityDevice") ?? ""
     }
 
     func resetShortcuts() {

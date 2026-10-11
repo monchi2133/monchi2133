@@ -12,6 +12,7 @@ struct OverlayView: View {
     @EnvironmentObject private var power: PowerManager
     @EnvironmentObject private var clamshell: ClamshellManager
 
+    @ObservedObject private var status = AgentStatus.shared
     @State private var glow = false
     @State private var nudge = false
     @State private var hoveringUnlock = false
@@ -231,6 +232,7 @@ struct OverlayView: View {
     }
 
     private var title: String {
+        if lock.isCleaning { return "キーボード掃除モード" }
         if lock.isPreview { return prefs.message.isEmpty ? "このMacはロックされています" : prefs.message }
         switch lock.state {
         case .authenticating: return "Touch ID またはパスワードで認証してください"
@@ -241,6 +243,7 @@ struct OverlayView: View {
     }
 
     private var subtitle: String {
+        if lock.isCleaning { return "入力をロック中です。時間が来たら自動で解除します（指紋ボタンですぐ解除も可）" }
         if lock.state == .authenticating { return "キャンセルするとロック状態に戻ります" }
         let how = lock.biometryAvailable ? "指紋" : "鍵"
         return "入力はブロック中。作業はそのまま続いています — \(how)ボタンをクリックして解除（\(prefs.unlockShortcut.displayString) でも可）"
@@ -261,7 +264,15 @@ struct OverlayView: View {
             } else if prefs.closedLidEnabled, let reason = clamshell.safetyStopReason {
                 Chip(icon: "exclamationmark.triangle.fill", text: reason)
             }
-            if prefs.showAgents && !agents.agents.isEmpty {
+            if let until = lock.cleaningUntil {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let left = max(0, Int(until.timeIntervalSince(context.date)))
+                    Chip(icon: "sparkle", text: "残り \(left) 秒", highlighted: true)
+                }
+            }
+            if prefs.showAgentProgress, let line = status.line {
+                Chip(icon: "sparkles", text: line, highlighted: true)
+            } else if prefs.showAgents && !agents.agents.isEmpty {
                 Chip(icon: "sparkles", text: agents.agents.joined(separator: "・") + " 実行中", highlighted: true)
             }
             if let at = lock.autoUnlockAt {

@@ -12,9 +12,9 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(ClamshellManager.shared)
         let host = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: host)
-        window.title = "Bastion 設定"
+        window.title = "るすばん 設定"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 560, height: 600))
+        window.setContentSize(NSSize(width: 580, height: 640))
         window.isReleasedWhenClosed = false
         window.center()
         self.init(window: window)
@@ -26,10 +26,12 @@ struct SettingsView: View {
         TabView {
             GeneralSettings().tabItem { Label("一般", systemImage: "gearshape") }
             AppearanceSettings().tabItem { Label("ロック画面", systemImage: "rectangle.on.rectangle") }
+            NotificationSettings().tabItem { Label("通知", systemImage: "bell.badge") }
+            WatchSettings().tabItem { Label("みはり", systemImage: "eye") }
             ShortcutSettings().tabItem { Label("ショートカット", systemImage: "keyboard") }
             PermissionSettings().tabItem { Label("権限", systemImage: "hand.raised") }
         }
-        .frame(width: 560, height: 600)
+        .frame(width: 580, height: 640)
     }
 }
 
@@ -75,6 +77,7 @@ private struct GeneralSettings: View {
                 Toggle("ディスプレイも点灯したままにする", isOn: $prefs.keepDisplayOn)
                     .disabled(!prefs.preventSleep)
                 Toggle("AIエージェント実行中は常にスリープを防止", isOn: $prefs.awakeWhileAgentsRun)
+                Toggle("AIが終わったらスリープ防止を解除（ロックは維持・電池節約）", isOn: $prefs.releaseSleepWhenDone)
             }
 
             ClosedLidSection()
@@ -245,6 +248,7 @@ private struct AppearanceSettings: View {
                 Toggle("大きな時計を表示", isOn: $prefs.showClock)
                 Toggle("経過時間を表示", isOn: $prefs.showTimer)
                 Toggle("実行中のAIエージェントを表示", isOn: $prefs.showAgents)
+                Toggle("AIの進み具合を表示（フック連携）", isOn: $prefs.showAgentProgress)
             }
 
             Section {
@@ -297,6 +301,117 @@ private struct ShortcutSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - 通知
+
+private struct NotificationSettings: View {
+    @EnvironmentObject private var prefs: Preferences
+    @State private var testResult: String?
+    @State private var testing = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("スマホ通知を使う", isOn: $prefs.notifyEnabled)
+                Picker("通知先", selection: $prefs.notifyProvider) {
+                    ForEach(NotifyProvider.allCases) { Text($0.label).tag($0) }
+                }
+                .disabled(!prefs.notifyEnabled)
+            } header: {
+                Text("通知")
+            } footer: {
+                Text("席を外したあと、AI が作業を終えたときや入力待ちになったときに、iPhone へ通知します。")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            Section("接続先") {
+                switch prefs.notifyProvider {
+                case .pushover:
+                    TextField("API トークン", text: $prefs.pushoverToken)
+                    TextField("ユーザーキー", text: $prefs.pushoverUser)
+                    Text("Pushover アプリ（iPhone）で取得したトークンとユーザーキーを入力します。侵入者の写真も添付できます。")
+                        .font(.caption).foregroundColor(.secondary)
+                case .slack:
+                    TextField("Incoming Webhook URL", text: $prefs.slackWebhook)
+                    Text("Slack の Incoming Webhook URL を入力します。")
+                        .font(.caption).foregroundColor(.secondary)
+                case .webhook:
+                    TextField("Webhook URL", text: $prefs.webhookURL)
+                    Text("指定した URL に {title, body, timestamp} を JSON で POST します。LINE などは中継サービス側で受けてください。")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+            }
+            .disabled(!prefs.notifyEnabled)
+
+            Section("知らせる内容") {
+                Toggle("AIの作業が完了したとき", isOn: $prefs.notifyOnFinish)
+                Toggle("AIが入力待ちになったとき（フック連携）", isOn: $prefs.notifyOnWaiting)
+                Toggle("ロック中に操作を検知したとき", isOn: $prefs.notifyOnIntruder)
+            }
+            .disabled(!prefs.notifyEnabled)
+
+            Section {
+                HStack {
+                    if testing { ProgressView().controlSize(.small) }
+                    Button("テスト送信") {
+                        testing = true; testResult = nil
+                        Notifier.shared.sendTest { msg in testing = false; testResult = msg ?? "送信しました" }
+                    }
+                    .disabled(!prefs.notifyEnabled || testing)
+                    if let testResult {
+                        Text(testResult).font(.caption).foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+// MARK: - みはり（侵入検知・近接解除）
+
+private struct WatchSettings: View {
+    @EnvironmentObject private var prefs: Preferences
+    @State private var devices: [ProximityMonitor.Device] = []
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("ロック中の操作・解除失敗をカメラで記録", isOn: $prefs.intruderEnabled)
+                Toggle("解除に失敗したとき", isOn: $prefs.intruderOnFailedAuth)
+                    .disabled(!prefs.intruderEnabled)
+                Toggle("ロック中にキーボード・マウスが触られたとき", isOn: $prefs.intruderOnTamper)
+                    .disabled(!prefs.intruderEnabled)
+                Button("保存フォルダを開く") {
+                    try? FileManager.default.createDirectory(at: IntruderCapture.folder, withIntermediateDirectories: true)
+                    NSWorkspace.shared.open(IntruderCapture.folder)
+                }
+            } header: {
+                Text("侵入者の記録")
+            } footer: {
+                Text("内蔵カメラで静止画を 1 枚だけ撮り、~/Pictures/Rusuban に保存します。30 日より古い写真は自動で消えます。通知をオンにしていると Pushover に写真を添付して送れます。初回はカメラの許可が必要です。")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            Section {
+                Toggle("身につけた機器が近づいたら自動で解除（実験的）", isOn: $prefs.proximityEnabled)
+                Picker("解除のきっかけにする機器", selection: $prefs.proximityDevice) {
+                    Text("未選択").tag("")
+                    ForEach(devices) { Text($0.name).tag($0.address) }
+                }
+                .disabled(!prefs.proximityEnabled)
+                Button("機器の一覧を更新") { devices = ProximityMonitor.pairedDevices() }
+            } header: {
+                Text("近づいたら自動解除")
+            } footer: {
+                Text("ペアリング済みの iPhone / Apple Watch が接続状態になったら解除します。機器や環境によって接続状態が安定しないため、確実な解除手段としては使わないでください。")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { devices = ProximityMonitor.pairedDevices() }
     }
 }
 
@@ -369,7 +484,7 @@ private struct PermissionSettings: View {
                     }
                 }
             } footer: {
-                Text("Bastion は macOS のイベントタップで入力を破棄します。入力内容を記録・送信することはなく、ネットワーク通信も行いません。")
+                Text("るすばん は macOS のイベントタップで入力を破棄します。入力内容を記録・送信することはなく、ネットワーク通信も行いません。")
                     .font(.caption).foregroundColor(.secondary)
             }
         }

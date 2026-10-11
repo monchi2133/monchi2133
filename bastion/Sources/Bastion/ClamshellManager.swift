@@ -183,7 +183,7 @@ final class ClamshellManager: ObservableObject {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
         let source = """
-        do shell script "\(escaped)" with prompt "Bastion が「蓋を閉じてもスリープしない」機能を設定します。" with administrator privileges
+        do shell script "\(escaped)" with prompt "るすばん が「蓋を閉じてもスリープしない」機能を設定します。" with administrator privileges
         """
         // NSAppleScript はメインスレッドで実行する
         DispatchQueue.main.async {

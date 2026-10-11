@@ -12,6 +12,7 @@ final class PowerManager: ObservableObject {
 
     @Published private(set) var mode: Mode?
     private var assertionID: IOPMAssertionID = 0
+    private var sawAgentsThisLock = false
 
     var isPreventingSleep: Bool { mode != nil }
 
@@ -20,9 +21,16 @@ final class PowerManager: ObservableObject {
         let locked = LockController.shared.state != .unlocked
         let agentsRunning = !AgentMonitor.shared.agents.isEmpty
 
+        if locked && agentsRunning { sawAgentsThisLock = true }
+        if !locked { sawAgentsThisLock = false }
+
         var wanted: Mode?
         if locked && prefs.preventSleep {
-            wanted = prefs.keepDisplayOn ? .display : .system
+            // AI が終わったら（このロック中に動いていて今は止まっている）スリープ防止を解除して電池を守る
+            let doneAndIdle = prefs.releaseSleepWhenDone && sawAgentsThisLock && !agentsRunning
+            if !doneAndIdle {
+                wanted = prefs.keepDisplayOn ? .display : .system
+            }
         } else if prefs.awakeWhileAgentsRun && agentsRunning {
             wanted = .system
         }
@@ -50,7 +58,7 @@ final class PowerManager: ObservableObject {
         let result = IOPMAssertionCreateWithName(
             type as CFString,
             IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            "Bastion: AIエージェント・長時間処理を継続中" as CFString,
+            "るすばん: AIエージェント・長時間処理を継続中" as CFString,
             &id
         )
         if result == kIOReturnSuccess {
