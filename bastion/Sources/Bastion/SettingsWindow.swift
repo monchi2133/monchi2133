@@ -402,7 +402,9 @@ private struct WatchSettings: View {
                     ForEach(devices) { Text($0.name).tag($0.address) }
                 }
                 .disabled(!prefs.proximityEnabled)
-                Button("機器の一覧を更新") { devices = ProximityMonitor.pairedDevices() }
+                Button(devices.isEmpty ? "機器の一覧を読み込む" : "機器の一覧を更新") {
+                    devices = ProximityMonitor.pairedDevices()
+                }
             } header: {
                 Text("近づいたら自動解除")
             } footer: {
@@ -411,7 +413,6 @@ private struct WatchSettings: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { devices = ProximityMonitor.pairedDevices() }
     }
 }
 
