@@ -32,7 +32,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "Bastion")
         image?.isTemplate = true
         statusItem.button?.image = image
-        statusItem.button?.toolTip = locked ? "るすばん — ロック中" : "るすばん"
+        statusItem.button?.toolTip = locked ? "AIロックキーパー — ロック中" : "AIロックキーパー"
     }
 
     // MARK: NSMenuDelegate
@@ -42,7 +42,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let prefs = Preferences.shared
         let agents = AgentMonitor.shared.agents
 
-        let header = NSMenuItem(title: "るすばん", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "AIロックキーパー", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
@@ -99,7 +99,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         settings.target = self
         menu.addItem(settings)
 
-        let about = NSMenuItem(title: "るすばん について", action: #selector(showAbout), keyEquivalent: "")
+        let about = NSMenuItem(title: "AIロックキーパー について", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
 

@@ -1,4 +1,4 @@
-# るすばん（Rusuban）— 画面は見えたまま、入力だけロック
+# AIロックキーパー（AILockKeeper）— 画面は見えたまま、入力だけロック
 
 [Warden](https://www.getwarden.org/) を参考にした macOS メニューバーアプリです。
 キーボード・マウス・トラックパッド・ジェスチャーの入力をブロックしつつ、画面は表示したまま、
@@ -20,7 +20,7 @@ Claude Code / Codex / Cursor などの AI エージェントやビルド・レ�
 | AI エージェント検出 | Claude Code / Codex / Cursor Agent / Gemini CLI / Aider / OpenCode などを自動検出し、ロック画面に「実行中」と表示 |
 | スマホ通知 | AI が完了／入力待ちになったとき、ロック中に操作を検知したときに iPhone へ通知（Pushover / Slack / 汎用Webhook）。設定 › 通知 |
 | AI の進み具合表示 | フックが書いた状態（例「テスト実行中 (3/5)」）をロック画面に表示。設定 › ロック画面 |
-| 侵入者の記録 | ロック中の操作・解除失敗時にカメラで静止画を1枚保存（~/Pictures/Rusuban、30日で自動削除）。通知オンで写真を添付。設定 › みはり |
+| 侵入者の記録 | ロック中の操作・解除失敗時にカメラで静止画を1枚保存（~/Pictures/AILockKeeper、30日で自動削除）。通知オンで写真を添付。設定 › みはり |
 | AI完了で省電力 | AIが終わったらロックは維持したままスリープ防止だけ解除。設定 › 一般 |
 | 近接オート解除（実験的） | ペアリング済み iPhone / Apple Watch が接続したら自動解除。設定 › みはり |
 | キーボード掃除モード | 数十秒だけ入力をロックして拭き掃除。メニューバー →「キーボード掃除モード（30秒）」 |
@@ -106,7 +106,7 @@ Sources/Bastion/
 ロック画面に「Claude Code：テスト実行中 (3/5)」のように出したり、「入力待ちになった」をスマホに通知したりするには、
 AI 側から状態を知らせます。方法は状態ファイルを書くだけです。
 
-状態ファイル: `~/.rusuban/status.json`
+状態ファイル: `~/.ailockkeeper/status.json`
 
 ```json
 { "tool": "Claude Code", "state": "running", "message": "テスト実行中", "progress": "3/5" }
@@ -122,9 +122,9 @@ Claude Code の設定（`~/.claude/settings.json`）に次のフックを入れ�
 {
   "hooks": {
     "Notification": [{ "hooks": [{ "type": "command",
-      "command": "mkdir -p ~/.rusuban && printf '{\"tool\":\"Claude Code\",\"state\":\"waiting\",\"message\":\"入力待ち\"}' > ~/.rusuban/status.json" }] }],
+      "command": "mkdir -p ~/.ailockkeeper && printf '{\"tool\":\"Claude Code\",\"state\":\"waiting\",\"message\":\"入力待ち\"}' > ~/.ailockkeeper/status.json" }] }],
     "Stop": [{ "hooks": [{ "type": "command",
-      "command": "mkdir -p ~/.rusuban && printf '{\"tool\":\"Claude Code\",\"state\":\"done\"}' > ~/.rusuban/status.json" }] }]
+      "command": "mkdir -p ~/.ailockkeeper && printf '{\"tool\":\"Claude Code\",\"state\":\"done\"}' > ~/.ailockkeeper/status.json" }] }]
   }
 }
 ```

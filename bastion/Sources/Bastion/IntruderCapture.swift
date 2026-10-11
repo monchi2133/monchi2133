@@ -2,7 +2,7 @@ import AVFoundation
 import Foundation
 
 /// ロック中の操作や解除失敗のときに、カメラで静止画を 1 枚だけ撮って記録する。
-/// 保存先: ~/Pictures/Rusuban/ 。30 日より古いものは起動時に自動削除。
+/// 保存先: ~/Pictures/AILockKeeper/ 。30 日より古いものは起動時に自動削除。
 /// 画像は端末内に保存するだけで、通知をオンにしている場合のみ Pushover に添付して送る。
 final class IntruderCapture: NSObject {
     static let shared = IntruderCapture()
@@ -16,7 +16,7 @@ final class IntruderCapture: NSObject {
     static var folder: URL {
         let pics = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures")
-        return pics.appendingPathComponent("Rusuban")
+        return pics.appendingPathComponent("AILockKeeper")
     }
 
     /// 権限を確認し、許可されていれば 1 枚撮って保存する。完了で保存先 URL（失敗時 nil）を返す。

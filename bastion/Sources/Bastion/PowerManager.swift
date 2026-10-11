@@ -58,7 +58,7 @@ final class PowerManager: ObservableObject {
         let result = IOPMAssertionCreateWithName(
             type as CFString,
             IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            "るすばん: AIエージェント・長時間処理を継続中" as CFString,
+            "AIロックキーパー: AIエージェント・長時間処理を継続中" as CFString,
             &id
         )
         if result == kIOReturnSuccess {

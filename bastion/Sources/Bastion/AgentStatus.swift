@@ -2,7 +2,7 @@ import Combine
 import Foundation
 
 /// Claude Code などのフックが書き込む状態ファイルを読み、ロック画面に進捗を出す。
-/// ファイル: ~/.rusuban/status.json
+/// ファイル: ~/.ailockkeeper/status.json
 ///   {"tool":"Claude Code","state":"running|waiting|done","message":"テスト実行中","progress":"3/5"}
 /// フックが無くても AgentMonitor のプロセス検出だけで「実行中／完了」は分かる。
 final class AgentStatus: ObservableObject {
@@ -24,7 +24,7 @@ final class AgentStatus: ObservableObject {
     private var lastState: String?
     private let fileURL: URL = {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".rusuban/status.json")
+        return home.appendingPathComponent(".ailockkeeper/status.json")
     }()
 
     func start() {

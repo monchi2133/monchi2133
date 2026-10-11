@@ -146,7 +146,7 @@ final class LockController: ObservableObject {
         guard blocker.start() else {
             let alert = NSAlert()
             alert.messageText = "入力をロックできませんでした"
-            alert.informativeText = "システム設定 › プライバシーとセキュリティ › アクセシビリティ で るすばん を許可してください。"
+            alert.informativeText = "システム設定 › プライバシーとセキュリティ › アクセシビリティ で AIロックキーパー を許可してください。"
             alert.addButton(withTitle: "システム設定を開く")
             alert.addButton(withTitle: "閉じる")
             NSApp.activate(ignoringOtherApps: true)

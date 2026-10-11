@@ -12,7 +12,7 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(ClamshellManager.shared)
         let host = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: host)
-        window.title = "るすばん 設定"
+        window.title = "AIロックキーパー 設定"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 580, height: 640))
         window.isReleasedWhenClosed = false
@@ -391,7 +391,7 @@ private struct WatchSettings: View {
             } header: {
                 Text("侵入者の記録")
             } footer: {
-                Text("内蔵カメラで静止画を 1 枚だけ撮り、~/Pictures/Rusuban に保存します。30 日より古い写真は自動で消えます。通知をオンにしていると Pushover に写真を添付して送れます。初回はカメラの許可が必要です。")
+                Text("内蔵カメラで静止画を 1 枚だけ撮り、~/Pictures/AILockKeeper に保存します。30 日より古い写真は自動で消えます。通知をオンにしていると Pushover に写真を添付して送れます。初回はカメラの許可が必要です。")
                     .font(.caption).foregroundColor(.secondary)
             }
 
@@ -484,7 +484,7 @@ private struct PermissionSettings: View {
                     }
                 }
             } footer: {
-                Text("るすばん は macOS のイベントタップで入力を破棄します。入力内容を記録・送信することはなく、ネットワーク通信も行いません。")
+                Text("AIロックキーパー は macOS のイベントタップで入力を破棄します。入力内容を記録・送信することはなく、ネットワーク通信も行いません。")
                     .font(.caption).foregroundColor(.secondary)
             }
         }

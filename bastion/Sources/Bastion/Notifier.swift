@@ -14,24 +14,24 @@ final class Notifier {
     func agentFinished(_ detail: String?) {
         let body = detail.map { "AI の作業が完了しました（\($0)）" } ?? "AI の作業が完了しました"
         guard Preferences.shared.notifyOnFinish else { return }
-        send(title: "るすばん：作業完了", body: body)
+        send(title: "AIロックキーパー：作業完了", body: body)
     }
 
     func agentWaiting(_ message: String?) {
         guard Preferences.shared.notifyOnWaiting else { return }
         let body = (message?.isEmpty == false) ? message! : "AI が入力待ちになりました"
-        send(title: "るすばん：入力待ち", body: body)
+        send(title: "AIロックキーパー：入力待ち", body: body)
     }
 
     func intruder(at date: Date, imageURL: URL?) {
         guard Preferences.shared.notifyOnIntruder else { return }
         let f = DateFormatter(); f.dateFormat = "H:mm:ss"
-        send(title: "るすばん：ロック中に操作を検知", body: "\(f.string(from: date)) に操作がありました", imageURL: imageURL)
+        send(title: "AIロックキーパー：ロック中に操作を検知", body: "\(f.string(from: date)) に操作がありました", imageURL: imageURL)
     }
 
     /// 設定画面のテスト送信
     func sendTest(completion: @escaping (String?) -> Void) {
-        deliver(title: "るすばん：テスト通知", body: "通知の設定は正しく動いています。", imageURL: nil, completion: completion)
+        deliver(title: "AIロックキーパー：テスト通知", body: "通知の設定は正しく動いています。", imageURL: nil, completion: completion)
     }
 
     // MARK: - 送信
