@@ -16,7 +16,6 @@ let package = Package(
                 .linkedFramework("ServiceManagement"),
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreMedia"),
-                .linkedFramework("IOBluetooth"),
             ]
         )
     ]

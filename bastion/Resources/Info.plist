@@ -28,7 +28,5 @@
     <string>席を外しても AI が働き続ける入力ロック。</string>
     <key>NSCameraUsageDescription</key>
     <string>ロック中の操作者や解除失敗を記録するために、カメラで静止画を撮影します。</string>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>近づいたら自動で解除するために、ペアリング済み機器の接続状態を確認します。</string>
 </dict>
 </plist>

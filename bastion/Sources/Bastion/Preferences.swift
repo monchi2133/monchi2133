@@ -89,9 +89,6 @@ final class Preferences: ObservableObject {
     // AI が終わったらスリープ防止を自動解除（ロックは維持）
     @Published var releaseSleepWhenDone: Bool { didSet { defaults.set(releaseSleepWhenDone, forKey: "releaseSleepWhenDone") } }
 
-    // 近接オート解除（実験的・Bluetooth）
-    @Published var proximityEnabled: Bool { didSet { defaults.set(proximityEnabled, forKey: "proximityEnabled") } }
-    @Published var proximityDevice: String { didSet { defaults.set(proximityDevice, forKey: "proximityDevice") } }
 
     private init() {
         defaults.register(defaults: [
@@ -129,8 +126,6 @@ final class Preferences: ObservableObject {
             "intruderOnFailedAuth": true,
             "intruderOnTamper": false,
             "releaseSleepWhenDone": true,
-            "proximityEnabled": false,
-            "proximityDevice": "",
         ])
         lockShortcut = Self.load("lockShortcut", from: defaults) ?? .defaultLock
         unlockShortcut = Self.load("unlockShortcut", from: defaults) ?? .defaultUnlock
@@ -168,8 +163,6 @@ final class Preferences: ObservableObject {
         intruderOnFailedAuth = defaults.bool(forKey: "intruderOnFailedAuth")
         intruderOnTamper = defaults.bool(forKey: "intruderOnTamper")
         releaseSleepWhenDone = defaults.bool(forKey: "releaseSleepWhenDone")
-        proximityEnabled = defaults.bool(forKey: "proximityEnabled")
-        proximityDevice = defaults.string(forKey: "proximityDevice") ?? ""
     }
 
     func resetShortcuts() {

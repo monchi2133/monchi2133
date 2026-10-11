@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AgentMonitor.shared.onAllFinished = { detail in Notifier.shared.agentFinished(detail) }
         AgentStatus.shared.start()
         HotCornerMonitor.shared.start()
-        ProximityMonitor.shared.start()
         ClamshellManager.shared.recoverOnLaunch()
         IntruderCapture.shared.purgeOld()
 

@@ -370,11 +370,10 @@ private struct NotificationSettings: View {
     }
 }
 
-// MARK: - みはり（侵入検知・近接解除）
+// MARK: - みはり（侵入検知）
 
 private struct WatchSettings: View {
     @EnvironmentObject private var prefs: Preferences
-    @State private var devices: [ProximityMonitor.Device] = []
 
     var body: some View {
         Form {
@@ -395,22 +394,6 @@ private struct WatchSettings: View {
                     .font(.caption).foregroundColor(.secondary)
             }
 
-            Section {
-                Toggle("身につけた機器が近づいたら自動で解除（実験的）", isOn: $prefs.proximityEnabled)
-                Picker("解除のきっかけにする機器", selection: $prefs.proximityDevice) {
-                    Text("未選択").tag("")
-                    ForEach(devices) { Text($0.name).tag($0.address) }
-                }
-                .disabled(!prefs.proximityEnabled)
-                Button(devices.isEmpty ? "機器の一覧を読み込む" : "機器の一覧を更新") {
-                    devices = ProximityMonitor.pairedDevices()
-                }
-            } header: {
-                Text("近づいたら自動解除")
-            } footer: {
-                Text("ペアリング済みの iPhone / Apple Watch が接続状態になったら解除します。機器や環境によって接続状態が安定しないため、確実な解除手段としては使わないでください。")
-                    .font(.caption).foregroundColor(.secondary)
-            }
         }
         .formStyle(.grouped)
     }
