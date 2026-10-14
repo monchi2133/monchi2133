@@ -85,6 +85,7 @@ final class Preferences: ObservableObject {
     @Published var intruderEnabled: Bool { didSet { defaults.set(intruderEnabled, forKey: "intruderEnabled") } }
     @Published var intruderOnFailedAuth: Bool { didSet { defaults.set(intruderOnFailedAuth, forKey: "intruderOnFailedAuth") } }
     @Published var intruderOnTamper: Bool { didSet { defaults.set(intruderOnTamper, forKey: "intruderOnTamper") } }
+    @Published var intruderGraceSeconds: Int { didSet { defaults.set(intruderGraceSeconds, forKey: "intruderGraceSeconds") } }
 
     // AI が終わったらスリープ防止を自動解除（ロックは維持）
     @Published var releaseSleepWhenDone: Bool { didSet { defaults.set(releaseSleepWhenDone, forKey: "releaseSleepWhenDone") } }
@@ -125,6 +126,7 @@ final class Preferences: ObservableObject {
             "intruderEnabled": false,
             "intruderOnFailedAuth": true,
             "intruderOnTamper": false,
+            "intruderGraceSeconds": 30,
             "releaseSleepWhenDone": true,
         ])
         lockShortcut = Self.load("lockShortcut", from: defaults) ?? .defaultLock
@@ -162,6 +164,7 @@ final class Preferences: ObservableObject {
         intruderEnabled = defaults.bool(forKey: "intruderEnabled")
         intruderOnFailedAuth = defaults.bool(forKey: "intruderOnFailedAuth")
         intruderOnTamper = defaults.bool(forKey: "intruderOnTamper")
+        intruderGraceSeconds = defaults.integer(forKey: "intruderGraceSeconds")
         releaseSleepWhenDone = defaults.bool(forKey: "releaseSleepWhenDone")
     }
 

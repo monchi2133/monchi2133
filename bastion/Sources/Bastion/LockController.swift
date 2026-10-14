@@ -48,8 +48,12 @@ final class LockController: ObservableObject {
     private var unlockHotspots: [String: CGRect] = [:]
     private var lastRemoteInput = Date.distantPast
     private var remoteTimer: Timer?
-    private var lastIntrusion = Date.distantPast
     private var cleaningTimer: Timer?
+    private enum AlertKind { case failedAuth, tamper }
+    private var pendingAlertKind: AlertKind?
+    private var pendingAlertDate = Date()
+    private var pendingAlertImage: URL?
+    private var alertTimer: Timer?
 
     /// オーバーレイの指紋ボタンの位置を登録（CG グローバル座標）
     func setUnlockHotspot(_ rect: CGRect, for id: String) {
@@ -132,7 +136,7 @@ final class LockController: ObservableObject {
             // 手元で誰かが触った → 解除ボタンが見えるよう通常表示に戻す
             if self.remoteActive { self.remoteActive = false }
             if !self.isCleaning, Preferences.shared.intruderOnTamper {
-                self.handleIntrusion()
+                self.armIntrusion(.tamper)
             }
         }
         blocker.onLocalPointer = { [weak self] in
@@ -246,7 +250,7 @@ final class LockController: ObservableObject {
         blocker.passThrough = false
         authFailed = true
         state = .locked
-        if Preferences.shared.intruderOnFailedAuth { handleIntrusion() }
+        if Preferences.shared.intruderOnFailedAuth { armIntrusion(.failedAuth) }
         overlays.forEach {
             $0.level = .screenSaver
             $0.ignoresMouseEvents = overlayPassesClicks
@@ -272,6 +276,7 @@ final class LockController: ObservableObject {
         cleaningTimer?.invalidate()
         cleaningTimer = nil
         cleaningUntil = nil
+        cancelPendingAlert()
         state = .unlocked
         lockedAt = nil
         authFailed = false
@@ -299,15 +304,51 @@ final class LockController: ObservableObject {
 
     // MARK: - 侵入検知
 
-    private func handleIntrusion() {
-        guard Date().timeIntervalSince(lastIntrusion) > 20 else { return }
-        lastIntrusion = Date()
-        let date = Date()
+    /// 侵入の疑いを「猶予つき」で記録する。猶予（既定30秒）内に解除できたら持ち主が戻ったとみなし、
+    /// 撮影も通知もしない。解除できないまま猶予が過ぎたときだけ撮影して通知する。
+    private func armIntrusion(_ kind: AlertKind) {
+        guard alertTimer == nil else { return } // 既に猶予カウント中
+        pendingAlertKind = kind
+        pendingAlertDate = Date()
+        pendingAlertImage = nil
+
+        // 解除失敗は、その瞬間の顔を押さえるため先に撮っておく（猶予内に解除されたら破棄する）
+        if kind == .failedAuth, Preferences.shared.intruderEnabled {
+            IntruderCapture.shared.capture { [weak self] url in self?.pendingAlertImage = url }
+        }
+
+        let grace = max(0, Preferences.shared.intruderGraceSeconds)
+        if grace == 0 { fireIntrusion(); return }
+        alertTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(grace), repeats: false) { [weak self] _ in
+            self?.fireIntrusion()
+        }
+    }
+
+    private func fireIntrusion() {
+        alertTimer?.invalidate()
+        alertTimer = nil
+        guard state != .unlocked else { cancelPendingAlert(); return }
+        let date = pendingAlertDate
         if Preferences.shared.intruderEnabled {
-            IntruderCapture.shared.capture { url in Notifier.shared.intruder(at: date, imageURL: url) }
+            if let url = pendingAlertImage {
+                Notifier.shared.intruder(at: date, imageURL: url)
+            } else {
+                IntruderCapture.shared.capture { url in Notifier.shared.intruder(at: date, imageURL: url) }
+            }
         } else {
             Notifier.shared.intruder(at: date, imageURL: nil)
         }
+        pendingAlertKind = nil
+        pendingAlertImage = nil
+    }
+
+    /// 持ち主が戻って解除したときなど。撮ってしまった持ち主の写真は消す。
+    private func cancelPendingAlert() {
+        alertTimer?.invalidate()
+        alertTimer = nil
+        if let url = pendingAlertImage { try? FileManager.default.removeItem(at: url) }
+        pendingAlertKind = nil
+        pendingAlertImage = nil
     }
 
     // MARK: - Preview

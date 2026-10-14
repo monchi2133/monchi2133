@@ -383,6 +383,13 @@ private struct WatchSettings: View {
                     .disabled(!prefs.intruderEnabled)
                 Toggle("ロック中にキーボード・マウスが触られたとき", isOn: $prefs.intruderOnTamper)
                     .disabled(!prefs.intruderEnabled)
+                Picker("通知までの猶予（この時間内に解除すれば通知しない）", selection: $prefs.intruderGraceSeconds) {
+                    Text("すぐ通知").tag(0)
+                    Text("15秒").tag(15)
+                    Text("30秒").tag(30)
+                    Text("1分").tag(60)
+                }
+                .disabled(!prefs.intruderEnabled)
                 Button("保存フォルダを開く") {
                     try? FileManager.default.createDirectory(at: IntruderCapture.folder, withIntermediateDirectories: true)
                     NSWorkspace.shared.open(IntruderCapture.folder)
@@ -390,7 +397,7 @@ private struct WatchSettings: View {
             } header: {
                 Text("侵入者の記録")
             } footer: {
-                Text("内蔵カメラで静止画を 1 枚だけ撮り、~/Pictures/AILockKeeper に保存します。30 日より古い写真は自動で消えます。通知をオンにしていると Pushover に写真を添付して送れます。初回はカメラの許可が必要です。")
+                Text("内蔵カメラで静止画を 1 枚だけ撮り、~/Pictures/AILockKeeper に保存します。30 日より古い写真は自動で消えます。通知をオンにしていると Pushover に写真を添付して送れます。初回はカメラの許可が必要です。\n猶予を設けているので、自分で戻って解除したときは撮影も通知もされません。")
                     .font(.caption).foregroundColor(.secondary)
             }
 
