@@ -126,7 +126,7 @@ final class Preferences: ObservableObject {
             "intruderEnabled": false,
             "intruderOnFailedAuth": true,
             "intruderOnTamper": false,
-            "intruderGraceSeconds": 30,
+            "intruderGraceSeconds": 5,
             "releaseSleepWhenDone": true,
         ])
         lockShortcut = Self.load("lockShortcut", from: defaults) ?? .defaultLock

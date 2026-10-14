@@ -385,6 +385,7 @@ private struct WatchSettings: View {
                     .disabled(!prefs.intruderEnabled)
                 Picker("通知までの猶予（この時間内に解除すれば通知しない）", selection: $prefs.intruderGraceSeconds) {
                     Text("すぐ通知").tag(0)
+                    Text("5秒").tag(5)
                     Text("15秒").tag(15)
                     Text("30秒").tag(30)
                     Text("1分").tag(60)
